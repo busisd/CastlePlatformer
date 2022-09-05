@@ -4,9 +4,10 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <chrono>
+#include <list>
 
 template <typename T>
-void print_set(std::unordered_set<T> const &s)
+void PrintSet(std::unordered_set<T> const &s)
 {
     std::cout << "set{ ";
     for (const auto &elem : s)
@@ -16,28 +17,45 @@ void print_set(std::unordered_set<T> const &s)
     std::cout << "}\n";
 }
 
-/**
- * https://lazyfoo.net/tutorials/SDL/07_texture_loading_and_rendering/index.php
- */
-SDL_Texture *loadTexture(std::string path, SDL_Renderer *renderer)
+std::list<SDL_Texture *> g_textures;
+
+SDL_Texture *LoadTexture(std::string path, SDL_Renderer *renderer)
 {
-    // The final texture
-    SDL_Texture *newTexture = IMG_LoadTexture(renderer, path.c_str());
-    if (newTexture == NULL)
+    SDL_Texture *new_texture = IMG_LoadTexture(renderer, path.c_str());
+    if (new_texture == NULL)
     {
         printf("Unable to create texture from %s! SDL Error: %s\n", path.c_str(), SDL_GetError());
     }
+    else
+    {
+        g_textures.push_back(new_texture);
+    }
 
-    return newTexture;
+    return new_texture;
 }
+
+void DestroyTextures()
+{
+    for (SDL_Texture *texture : g_textures)
+    {
+        SDL_DestroyTexture(texture);
+    }
+    g_textures.clear();
+}
+
+const int SCREEN_W = 1280;
+const int SCREEN_H = 720;
 
 int main(int argc, char **argv)
 {
-    SDL_Window *window = SDL_CreateWindow("Hello SDL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, 0);
+    SDL_Window *window = SDL_CreateWindow("Hello SDL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
-    SDL_Texture *manTexture = loadTexture("assets/man.png", renderer);
-    SDL_Rect rectangle = {x : 0, y : 0, w : 64, h : 64};
+    SDL_Texture *man_texture = LoadTexture("assets/man.png", renderer);
+    SDL_Texture *bg_texture = LoadTexture("assets/castlebg.png", renderer);
+    SDL_Rect player_rect = {x : 0, y : 0, w : 64, h : 64};
+    SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
+    SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
     bool isRunning = true;
     SDL_Event event;
@@ -45,9 +63,7 @@ int main(int argc, char **argv)
     std::unordered_set<SDL_Keycode> keys_pressed;
 
     auto frame_length = std::chrono::microseconds{(int)(1.0 / 60.0 * 1000.0 * 1000.0)};
-
     auto current_time = std::chrono::steady_clock::now();
-    int y_accel = 0;
 
     while (isRunning)
     {
@@ -68,13 +84,13 @@ int main(int argc, char **argv)
                 {
                     bool inserted = keys_pressed.insert(event.key.keysym.sym).second;
                     if (inserted)
-                        print_set(keys_pressed);
+                        PrintSet(keys_pressed);
                 }
                 break;
 
             case SDL_KEYUP:
                 keys_pressed.erase(event.key.keysym.sym);
-                print_set(keys_pressed);
+                PrintSet(keys_pressed);
                 break;
             }
         }
@@ -83,44 +99,52 @@ int main(int argc, char **argv)
         {
             current_time += frame_length;
 
-            rectangle.y -= y_accel;
-            y_accel -= 1;
-
             if (keys_pressed.find(SDLK_UP) != keys_pressed.end())
             {
-                if(y_accel < 0) y_accel = 20;
-                // rectangle.y -= 5;
+                player_rect.y -= 5;
             }
             if (keys_pressed.find(SDLK_DOWN) != keys_pressed.end())
             {
-                // rectangle.y += 5;
+                player_rect.y += 5;
             }
             if (keys_pressed.find(SDLK_RIGHT) != keys_pressed.end())
             {
-                rectangle.x += 5;
+                player_rect.x += 5;
+                bg_rect_left.x += 5;
+                bg_rect_right.x += 5;
+                if (bg_rect_left.x > 0)
+                    bg_rect_left.x -= SCREEN_W;
+                if (bg_rect_right.x > SCREEN_W)
+                    bg_rect_right.x -= SCREEN_W;
             }
             if (keys_pressed.find(SDLK_LEFT) != keys_pressed.end())
             {
-                rectangle.x -= 5;
+                player_rect.x -= 5;
+                bg_rect_left.x -= 5;
+                bg_rect_right.x -= 5;
+                if (bg_rect_left.x < -SCREEN_W)
+                    bg_rect_left.x += SCREEN_W;
+                if (bg_rect_right.x < 0)
+                    bg_rect_right.x += SCREEN_W;
             }
             if (keys_pressed.find(SDLK_SPACE) != keys_pressed.end())
             {
-                rectangle.x = 0;
-                rectangle.y = 0;
-                y_accel = 0;
+                player_rect.x = 0;
+                player_rect.y = 0;
             }
         }
 
         SDL_RenderClear(renderer);
         SDL_SetRenderDrawColor(renderer, 120, 140, 70, 255);
 
-        SDL_RenderCopy(renderer, manTexture, NULL, &rectangle);
+        SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_left);
+        SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_right);
+        // SDL_RenderCopy(renderer, man_texture, NULL, &player_rect);
 
         SDL_RenderPresent(renderer);
     }
 
-    SDL_DestroyTexture(manTexture);
-
+    DestroyTextures();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

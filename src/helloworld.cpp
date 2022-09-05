@@ -17,6 +17,12 @@ void PrintSet(std::unordered_set<T> const &s)
     std::cout << "}\n";
 }
 
+template <typename T>
+bool Contains(std::unordered_set<T> const &s, T t)
+{
+    return s.find(t) != s.end();
+}
+
 std::list<SDL_Texture *> g_textures;
 
 SDL_Texture *LoadTexture(std::string path, SDL_Renderer *renderer)
@@ -51,12 +57,12 @@ int main(int argc, char **argv)
     SDL_Window *window = SDL_CreateWindow("Hello SDL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
-    SDL_Texture *king_texture = LoadTexture("assets/king.png", renderer);
-    SDL_Texture *bg_texture = LoadTexture("assets/castlebg.png", renderer);
-    SDL_Texture *clouds_texture = LoadTexture("assets/clouds.png", renderer);
-    SDL_Texture *moon_texture = LoadTexture("assets/moon.png", renderer);
+    SDL_Texture *king_texture = LoadTexture("../assets/king.png", renderer);
+    SDL_Texture *bg_texture = LoadTexture("../assets/castlebg.png", renderer);
+    SDL_Texture *clouds_texture = LoadTexture("../assets/clouds.png", renderer);
+    SDL_Texture *moon_texture = LoadTexture("../assets/moon.png", renderer);
 
-    SDL_Rect player_rect = {x : SCREEN_W/2 - (73/2), y : 400, w : 73, h : 153};
+    SDL_Rect player_rect = {x : SCREEN_W / 2 - (73 / 2), y : 400, w : 73, h : 153};
     bool facing_left = false;
 
     float player_x = 0.0;
@@ -64,8 +70,8 @@ int main(int argc, char **argv)
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
-    int fg_rect_x = SCREEN_W/2 - (300/2);
-    SDL_Rect fg_rect = {x : fg_rect_x, y : 400+153, w : 300, h : SCREEN_H-400-153};
+    int fg_rect_x = SCREEN_W / 2 - (300 / 2);
+    SDL_Rect fg_rect = {x : fg_rect_x, y : 400 + 153, w : 300, h : SCREEN_H - 400 - 153};
 
     float cloud_x = 0.0;
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
@@ -74,7 +80,7 @@ int main(int argc, char **argv)
     bool isRunning = true;
     SDL_Event event;
 
-    std::unordered_set<SDL_Keycode> keys_pressed;
+    std::unordered_set<SDL_KeyCode> keys_pressed;
 
     auto frame_length = std::chrono::microseconds{(int)(1.0 / 60.0 * 1000.0 * 1000.0)};
     auto current_time = std::chrono::steady_clock::now();
@@ -98,14 +104,14 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    bool inserted = keys_pressed.insert(event.key.keysym.sym).second;
+                    bool inserted = keys_pressed.insert((SDL_KeyCode) event.key.keysym.sym).second;
                     if (inserted)
                         PrintSet(keys_pressed);
                 }
                 break;
 
             case SDL_KEYUP:
-                keys_pressed.erase(event.key.keysym.sym);
+                keys_pressed.erase((SDL_KeyCode) event.key.keysym.sym);
                 PrintSet(keys_pressed);
                 break;
             }
@@ -117,23 +123,23 @@ int main(int argc, char **argv)
 
             current_time += frame_length;
 
-            if (keys_pressed.find(SDLK_UP) != keys_pressed.end())
+            if (Contains(keys_pressed, SDLK_UP))
             {
                 player_y -= 5;
             }
-            if (keys_pressed.find(SDLK_DOWN) != keys_pressed.end())
+            if (Contains(keys_pressed, SDLK_DOWN))
             {
                 player_y += 5;
             }
-            if (keys_pressed.find(SDLK_RIGHT) != keys_pressed.end())
+            if (Contains(keys_pressed, SDLK_RIGHT))
             {
                 player_x += 5;
-                facing_left=false;
+                facing_left = false;
             }
-            if (keys_pressed.find(SDLK_LEFT) != keys_pressed.end())
+            if (Contains(keys_pressed, SDLK_LEFT))
             {
                 player_x -= 5;
-                facing_left=true;
+                facing_left = true;
             }
 
             // player_rect.x = (int)player_x;

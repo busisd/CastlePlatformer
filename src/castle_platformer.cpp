@@ -54,7 +54,7 @@ const int SCREEN_H = 720;
 
 int main(int argc, char **argv)
 {
-    SDL_Window *window = SDL_CreateWindow("Hello SDL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
+    SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
     SDL_Texture *king_texture = LoadTexture("../assets/king.png", renderer);

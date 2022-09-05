@@ -53,9 +53,13 @@ int main(int argc, char **argv)
 
     SDL_Texture *man_texture = LoadTexture("assets/man.png", renderer);
     SDL_Texture *bg_texture = LoadTexture("assets/castlebg.png", renderer);
+    SDL_Texture *clouds_texture = LoadTexture("assets/clouds.png", renderer);
+    SDL_Texture *moon_texture = LoadTexture("assets/moon.png", renderer);
     SDL_Rect player_rect = {x : 0, y : 0, w : 64, h : 64};
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
+    SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
+    SDL_Rect cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
     bool isRunning = true;
     SDL_Event event;
@@ -110,28 +114,35 @@ int main(int argc, char **argv)
             if (keys_pressed.find(SDLK_RIGHT) != keys_pressed.end())
             {
                 player_rect.x += 5;
-                bg_rect_left.x += 5;
-                bg_rect_right.x += 5;
-                if (bg_rect_left.x > 0)
-                    bg_rect_left.x -= SCREEN_W;
-                if (bg_rect_right.x > SCREEN_W)
-                    bg_rect_right.x -= SCREEN_W;
-            }
-            if (keys_pressed.find(SDLK_LEFT) != keys_pressed.end())
-            {
-                player_rect.x -= 5;
-                bg_rect_left.x -= 5;
-                bg_rect_right.x -= 5;
+                bg_rect_left.x -= 3;
+                bg_rect_right.x -= 3;
                 if (bg_rect_left.x < -SCREEN_W)
                     bg_rect_left.x += SCREEN_W;
                 if (bg_rect_right.x < 0)
                     bg_rect_right.x += SCREEN_W;
+            }
+            if (keys_pressed.find(SDLK_LEFT) != keys_pressed.end())
+            {
+                player_rect.x -= 5;
+                bg_rect_left.x += 3;
+                bg_rect_right.x += 3;
+                if (bg_rect_left.x > 0)
+                    bg_rect_left.x -= SCREEN_W;
+                if (bg_rect_right.x > SCREEN_W)
+                    bg_rect_right.x -= SCREEN_W;
             }
             if (keys_pressed.find(SDLK_SPACE) != keys_pressed.end())
             {
                 player_rect.x = 0;
                 player_rect.y = 0;
             }
+
+            cloud_rect_left.x -= 1;
+            cloud_rect_right.x -= 1;
+            if (cloud_rect_left.x < -SCREEN_W)
+                cloud_rect_left.x += SCREEN_W;
+            if (cloud_rect_right.x < 0)
+                cloud_rect_right.x += SCREEN_W;
         }
 
         SDL_RenderClear(renderer);
@@ -139,6 +150,9 @@ int main(int argc, char **argv)
 
         SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_left);
         SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_right);
+        SDL_RenderCopy(renderer, moon_texture, NULL, NULL);
+        SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_left);
+        SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_right);
         // SDL_RenderCopy(renderer, man_texture, NULL, &player_rect);
 
         SDL_RenderPresent(renderer);
@@ -148,6 +162,5 @@ int main(int argc, char **argv)
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
     return 0;
 }

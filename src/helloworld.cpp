@@ -51,13 +51,23 @@ int main(int argc, char **argv)
     SDL_Window *window = SDL_CreateWindow("Hello SDL", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
-    SDL_Texture *man_texture = LoadTexture("assets/man.png", renderer);
+    SDL_Texture *king_texture = LoadTexture("assets/king.png", renderer);
     SDL_Texture *bg_texture = LoadTexture("assets/castlebg.png", renderer);
     SDL_Texture *clouds_texture = LoadTexture("assets/clouds.png", renderer);
     SDL_Texture *moon_texture = LoadTexture("assets/moon.png", renderer);
-    SDL_Rect player_rect = {x : 0, y : 0, w : 64, h : 64};
+
+    SDL_Rect player_rect = {x : SCREEN_W/2 - (73/2), y : 400, w : 73, h : 153};
+    bool facing_left = false;
+
+    float player_x = 0.0;
+    float player_y = 0.0;
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
+
+    int fg_rect_x = SCREEN_W/2 - (300/2);
+    SDL_Rect fg_rect = {x : fg_rect_x, y : 400+153, w : 300, h : SCREEN_H-400-153};
+
+    float cloud_x = 0.0;
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
@@ -68,6 +78,8 @@ int main(int argc, char **argv)
 
     auto frame_length = std::chrono::microseconds{(int)(1.0 / 60.0 * 1000.0 * 1000.0)};
     auto current_time = std::chrono::steady_clock::now();
+
+    int frame_number = 0;
 
     while (isRunning)
     {
@@ -101,61 +113,62 @@ int main(int argc, char **argv)
 
         while (std::chrono::steady_clock::now() > current_time + frame_length)
         {
+            frame_number++;
+
             current_time += frame_length;
 
             if (keys_pressed.find(SDLK_UP) != keys_pressed.end())
             {
-                player_rect.y -= 5;
+                player_y -= 5;
             }
             if (keys_pressed.find(SDLK_DOWN) != keys_pressed.end())
             {
-                player_rect.y += 5;
+                player_y += 5;
             }
             if (keys_pressed.find(SDLK_RIGHT) != keys_pressed.end())
             {
-                player_rect.x += 5;
-                bg_rect_left.x -= 3;
-                bg_rect_right.x -= 3;
-                if (bg_rect_left.x < -SCREEN_W)
-                    bg_rect_left.x += SCREEN_W;
-                if (bg_rect_right.x < 0)
-                    bg_rect_right.x += SCREEN_W;
+                player_x += 5;
+                facing_left=false;
             }
             if (keys_pressed.find(SDLK_LEFT) != keys_pressed.end())
             {
-                player_rect.x -= 5;
-                bg_rect_left.x += 3;
-                bg_rect_right.x += 3;
-                if (bg_rect_left.x > 0)
-                    bg_rect_left.x -= SCREEN_W;
-                if (bg_rect_right.x > SCREEN_W)
-                    bg_rect_right.x -= SCREEN_W;
-            }
-            if (keys_pressed.find(SDLK_SPACE) != keys_pressed.end())
-            {
-                player_rect.x = 0;
-                player_rect.y = 0;
+                player_x -= 5;
+                facing_left=true;
             }
 
-            cloud_rect_left.x -= 1;
-            cloud_rect_right.x -= 1;
-            if (cloud_rect_left.x < -SCREEN_W)
-                cloud_rect_left.x += SCREEN_W;
-            if (cloud_rect_right.x < 0)
-                cloud_rect_right.x += SCREEN_W;
+            // player_rect.x = (int)player_x;
+            // player_rect.y = (int)player_y;
+            fg_rect.x = fg_rect_x - player_x;
+
+            cloud_x -= .35;
+            if (cloud_x < 0)
+                cloud_x += SCREEN_W;
+            cloud_rect_left.x = cloud_x - SCREEN_W;
+            cloud_rect_right.x = cloud_x;
+
+            bg_rect_right.x = (int)(-0.22 * player_x) % SCREEN_W;
+            if (bg_rect_right.x < 0)
+                bg_rect_right.x += SCREEN_W;
+            bg_rect_left.x = bg_rect_right.x - SCREEN_W;
+
+            // Render
+            SDL_RenderClear(renderer);
+            SDL_SetRenderDrawColor(renderer, 120, 140, 70, 255);
+
+            SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_left);
+            SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_right);
+
+            SDL_RenderCopy(renderer, moon_texture, NULL, NULL);
+
+            SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_left);
+            SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_right);
+
+            SDL_RenderFillRect(renderer, &fg_rect);
+
+            SDL_RenderCopyEx(renderer, king_texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
+
+            SDL_RenderPresent(renderer);
         }
-
-        SDL_RenderClear(renderer);
-        SDL_SetRenderDrawColor(renderer, 120, 140, 70, 255);
-
-        SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_left);
-        SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_right);
-        SDL_RenderCopy(renderer, moon_texture, NULL, NULL);
-        SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_left);
-        SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_right);
-        // SDL_RenderCopy(renderer, man_texture, NULL, &player_rect);
-
-        SDL_RenderPresent(renderer);
     }
 
     DestroyTextures();

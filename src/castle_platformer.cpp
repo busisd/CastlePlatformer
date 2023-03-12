@@ -38,13 +38,17 @@ const int SCREEN_H = 720;
 
 int main(int argc, char **argv)
 {
+    std::string exe_path = argv[0];
+    std::string build_dir_path = exe_path.substr(0, exe_path.find_last_of("\\"));
+    std::string project_dir_path = build_dir_path.substr(0, build_dir_path.find_last_of("\\"));
+
     SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
-    SDL_Texture *king_texture = LoadTexture("../assets/king.png", renderer);
-    SDL_Texture *bg_texture = LoadTexture("../assets/castlebg.png", renderer);
-    SDL_Texture *clouds_texture = LoadTexture("../assets/clouds.png", renderer);
-    SDL_Texture *moon_texture = LoadTexture("../assets/moon.png", renderer);
+    SDL_Texture *king_texture = LoadTexture(project_dir_path + "/assets/king.png", renderer);
+    SDL_Texture *bg_texture = LoadTexture(project_dir_path + "/assets/castlebg.png", renderer);
+    SDL_Texture *clouds_texture = LoadTexture(project_dir_path + "/assets/clouds.png", renderer);
+    SDL_Texture *moon_texture = LoadTexture(project_dir_path + "/assets/moon.png", renderer);
 
     SDL_Rect player_rect = {x : SCREEN_W / 2 - (73 / 2), y : 400, w : 73, h : 153};
     bool facing_left = false;

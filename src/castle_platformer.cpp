@@ -5,23 +5,7 @@
 #include <SDL_image.h>
 #include <chrono>
 #include <list>
-
-template <typename T>
-void PrintSet(std::unordered_set<T> const &s)
-{
-    std::cout << "set{ ";
-    for (const auto &elem : s)
-    {
-        std::cout << elem << " ";
-    }
-    std::cout << "}\n";
-}
-
-template <typename T>
-bool Contains(std::unordered_set<T> const &s, T t)
-{
-    return s.find(t) != s.end();
-}
+#include "util.h"
 
 std::list<SDL_Texture *> g_textures;
 

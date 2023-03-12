@@ -3,14 +3,14 @@
 	"tasks": [
 		{
 			"type": "cppbuild",
-			"label": "C/C++: g++.exe build active file",
+			"label": "C/C++: g++.exe build castle_platformer",
 			"command": "C:/msys64/mingw64/bin/g++.exe",
 			"args": [
 				"-fdiagnostics-color=always",
 				"-g",
-				"${file}",
+				"${workspaceFolder}\\src\\castle_platformer.cpp",
 				"-o",
-				"${workspaceFolder}\\build\\${fileBasenameNoExtension}.exe",
+				"${workspaceFolder}\\build\\castle_platformer.exe",
 				"-I${workspaceFolder}\\libraries\\SDL2-2.24.0\\x86_64-w64-mingw32\\include\\SDL2",
 				"-I${workspaceFolder}\\libraries\\SDL2_image-2.6.2\\x86_64-w64-mingw32\\include\\SDL2",
 				"-lmingw32",

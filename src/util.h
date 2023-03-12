@@ -3,11 +3,14 @@
 
 #include <unordered_set>
 
-template <typename T>
-void PrintSet(std::unordered_set<T> const &s);
+namespace Util
+{
+  template <typename T>
+  void PrintSet(std::unordered_set<T> const &s);
 
-template <typename T>
-bool Contains(std::unordered_set<T> const &s, T t);
+  template <typename T>
+  bool Contains(std::unordered_set<T> const &s, T t);
+}
 
 #include "util.tcc"
 

@@ -92,15 +92,15 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    bool inserted = keys_pressed.insert((SDL_KeyCode) event.key.keysym.sym).second;
+                    bool inserted = keys_pressed.insert((SDL_KeyCode)event.key.keysym.sym).second;
                     if (inserted)
-                        PrintSet(keys_pressed);
+                        Util::PrintSet(keys_pressed);
                 }
                 break;
 
             case SDL_KEYUP:
-                keys_pressed.erase((SDL_KeyCode) event.key.keysym.sym);
-                PrintSet(keys_pressed);
+                keys_pressed.erase((SDL_KeyCode)event.key.keysym.sym);
+                Util::PrintSet(keys_pressed);
                 break;
             }
         }

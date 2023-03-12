@@ -36,6 +36,11 @@ void DestroyTextures()
 const int SCREEN_W = 1280;
 const int SCREEN_H = 720;
 
+const int PLAYER_WIDTH = 73;
+const int PLAYER_HEIGHT = 153;
+
+const int GROUND_HEIGHT = 473;
+
 int main(int argc, char **argv)
 {
     std::string exe_path = argv[0];
@@ -50,7 +55,7 @@ int main(int argc, char **argv)
     SDL_Texture *clouds_texture = LoadTexture(project_dir_path + "/assets/clouds.png", renderer);
     SDL_Texture *moon_texture = LoadTexture(project_dir_path + "/assets/moon.png", renderer);
 
-    SDL_Rect player_rect = {x : SCREEN_W / 2 - (73 / 2), y : 400, w : 73, h : 153};
+    SDL_Rect player_rect = {x : SCREEN_W / 2 - (PLAYER_WIDTH / 2), y : GROUND_HEIGHT - PLAYER_HEIGHT, w : PLAYER_WIDTH, h : PLAYER_HEIGHT};
     bool facing_left = false;
 
     float player_x = 0.0;
@@ -59,7 +64,7 @@ int main(int argc, char **argv)
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
     int fg_rect_x = SCREEN_W / 2 - (300 / 2);
-    SDL_Rect fg_rect = {x : fg_rect_x, y : 400 + 153, w : 300, h : SCREEN_H - 400 - 153};
+    SDL_Rect fg_rect = {x : fg_rect_x, y : GROUND_HEIGHT, w : 300, h : SCREEN_H - GROUND_HEIGHT};
 
     float cloud_x = 0.0;
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <list>
 #include "util.h"
+#include <algorithm>
 
 std::list<SDL_Texture *> g_textures;
 
@@ -33,6 +34,16 @@ void DestroyTextures()
     g_textures.clear();
 }
 
+/**
+ * Notes on position:
+ * Player Position will be a single point that the camera will try to focus on,
+ * within bounds.
+ * Player hitbox/sprite will be drawn around that Position.
+ * Usually that means it's the center of the sprite, but might not be in case of
+ * sprite changing size/ratio.
+ */
+
+// SCREEN CONSTANTS (Eventually should adapt to window size)
 const int SCREEN_W = 1280;
 const int SCREEN_H = 720;
 
@@ -40,6 +51,21 @@ const int PLAYER_WIDTH = 73;
 const int PLAYER_HEIGHT = 153;
 
 const int GROUND_HEIGHT = 473;
+
+// GAME CONSTANTS (Regardless of window size)
+const float STAGE_BOUND_LEFT = -500.0f;
+const float STAGE_BOUND_RIGHT = 500.0f;
+
+int MULTIPLIER_PLACEHOLDER = 1.0;
+int TransformGameXToWindowX(int game_x)
+{
+    return (game_x * MULTIPLIER_PLACEHOLDER) + (SCREEN_W / 2);
+}
+
+void DrawPlayerAtPosition(float player_position_x, float screen_center_x, SDL_Rect &player_rect)
+{
+    player_rect.x = (TransformGameXToWindowX(player_position_x - screen_center_x) - (PLAYER_WIDTH / 2));
+}
 
 int main(int argc, char **argv)
 {
@@ -58,8 +84,11 @@ int main(int argc, char **argv)
     SDL_Rect player_rect = {x : SCREEN_W / 2 - (PLAYER_WIDTH / 2), y : GROUND_HEIGHT - PLAYER_HEIGHT, w : PLAYER_WIDTH, h : PLAYER_HEIGHT};
     bool facing_left = false;
 
-    float player_x = 0.0;
-    float player_y = 0.0;
+    float player_position_x = 0.0;
+    float player_position_y = 0.0;
+    // float player_x = 0.0;
+    // float player_y = 0.0;
+    float player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
@@ -99,13 +128,13 @@ int main(int argc, char **argv)
                 {
                     bool inserted = keys_pressed.insert((SDL_KeyCode)event.key.keysym.sym).second;
                     if (inserted)
-                        Util::PrintSet(keys_pressed);
+                        util::PrintSet(keys_pressed);
                 }
                 break;
 
             case SDL_KEYUP:
                 keys_pressed.erase((SDL_KeyCode)event.key.keysym.sym);
-                Util::PrintSet(keys_pressed);
+                util::PrintSet(keys_pressed);
                 break;
             }
         }
@@ -116,28 +145,31 @@ int main(int argc, char **argv)
 
             current_time += frame_length;
 
-            if (Contains(keys_pressed, SDLK_UP))
+            if (util::Contains(keys_pressed, SDLK_UP))
             {
-                player_y -= 5;
+                player_position_y -= 5;
             }
-            if (Contains(keys_pressed, SDLK_DOWN))
+            if (util::Contains(keys_pressed, SDLK_DOWN))
             {
-                player_y += 5;
+                player_position_y += 5;
             }
-            if (Contains(keys_pressed, SDLK_RIGHT))
+            if (util::Contains(keys_pressed, SDLK_RIGHT))
             {
-                player_x += 5;
+                player_position_x += 5;
                 facing_left = false;
             }
-            if (Contains(keys_pressed, SDLK_LEFT))
+            if (util::Contains(keys_pressed, SDLK_LEFT))
             {
-                player_x -= 5;
+                player_position_x -= 5;
                 facing_left = true;
             }
 
-            // player_rect.x = (int)player_x;
+            float screen_center_x = std::clamp(player_position_x, STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
+
+            // player_rect.x = (int)(player_position_x - screen_center_x + player_offset_x);
+            DrawPlayerAtPosition(player_position_x, screen_center_x, player_rect);
             // player_rect.y = (int)player_y;
-            fg_rect.x = fg_rect_x - player_x;
+            fg_rect.x = fg_rect_x - screen_center_x + player_offset_x;
 
             cloud_x -= .35;
             if (cloud_x < 0)
@@ -145,7 +177,7 @@ int main(int argc, char **argv)
             cloud_rect_left.x = cloud_x - SCREEN_W;
             cloud_rect_right.x = cloud_x;
 
-            bg_rect_right.x = (int)(-0.22 * player_x) % SCREEN_W;
+            bg_rect_right.x = (int)(-0.22 * screen_center_x) % SCREEN_W + player_offset_x;
             if (bg_rect_right.x < 0)
                 bg_rect_right.x += SCREEN_W;
             bg_rect_left.x = bg_rect_right.x - SCREEN_W;

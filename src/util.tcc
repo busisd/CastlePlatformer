@@ -3,7 +3,7 @@
 #error Do not include this file directly, include example.hpp instead
 #endif
 
-namespace Util
+namespace util
 {
     template <typename T>
     void PrintSet(std::unordered_set<T> const &s)
@@ -15,10 +15,10 @@ namespace Util
         }
         std::cout << "}\n";
     };
-}
 
-template <typename T>
-bool Contains(std::unordered_set<T> const &s, T t)
-{
-    return s.find(t) != s.end();
+    template <typename T>
+    bool Contains(std::unordered_set<T> const &s, T t)
+    {
+        return s.find(t) != s.end();
+    }
 }

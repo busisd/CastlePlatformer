@@ -3,7 +3,7 @@
 
 #include <unordered_set>
 
-namespace Util
+namespace util
 {
   template <typename T>
   void PrintSet(std::unordered_set<T> const &s);

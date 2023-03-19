@@ -41,6 +41,9 @@ void DestroyTextures()
  * Player hitbox/sprite will be drawn around that Position.
  * Usually that means it's the center of the sprite, but might not be in case of
  * sprite changing size/ratio.
+ *
+ * The Game Area is an 800 by 450 rectangle (16:9 ratio) centered at 0,0.
+ * Bounds: (-400, 400) X; (-225, 225) Y
  */
 
 // SCREEN CONSTANTS (Eventually should adapt to window size)
@@ -53,18 +56,23 @@ const int PLAYER_HEIGHT = 153;
 const int GROUND_HEIGHT = 473;
 
 // GAME CONSTANTS (Regardless of window size)
+const int GAME_AREA_W = 800;
+const int GAME_AREA_H = 450;
+
 const float STAGE_BOUND_LEFT = -500.0f;
 const float STAGE_BOUND_RIGHT = 500.0f;
 
-int MULTIPLIER_PLACEHOLDER = 1.0;
+// Conversion from Game to Screen position
+float SCREEN_POSITION_MULTIPLIER = (float)SCREEN_W / GAME_AREA_W;
+
 int TransformGameXToWindowX(int game_x)
 {
-    return (game_x * MULTIPLIER_PLACEHOLDER) + (SCREEN_W / 2);
+    return (game_x * SCREEN_POSITION_MULTIPLIER) + (SCREEN_W / 2);
 }
 
-void DrawPlayerAtPosition(float player_position_x, float screen_center_x, SDL_Rect &player_rect)
+void DrawAtPosition(float position_x, float camera_center_x, float offset, SDL_Rect &draw_rect)
 {
-    player_rect.x = (TransformGameXToWindowX(player_position_x - screen_center_x) - (PLAYER_WIDTH / 2));
+    draw_rect.x = (TransformGameXToWindowX(position_x - camera_center_x) - (offset));
 }
 
 int main(int argc, char **argv)
@@ -92,8 +100,9 @@ int main(int argc, char **argv)
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
-    int fg_rect_x = SCREEN_W / 2 - (300 / 2);
-    SDL_Rect fg_rect = {x : fg_rect_x, y : GROUND_HEIGHT, w : 300, h : SCREEN_H - GROUND_HEIGHT};
+    // int fg_rect_x = SCREEN_W / 2 - (300 / 2);
+    int fg_rect_x = 400;
+    SDL_Rect fg_rect = {x : fg_rect_x, y : GROUND_HEIGHT, w : (int)(100*SCREEN_POSITION_MULTIPLIER), h : SCREEN_H - GROUND_HEIGHT};
 
     float cloud_x = 0.0;
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
@@ -147,29 +156,34 @@ int main(int argc, char **argv)
 
             if (util::Contains(keys_pressed, SDLK_UP))
             {
-                player_position_y -= 5;
+                player_position_y -= 3.5;
             }
             if (util::Contains(keys_pressed, SDLK_DOWN))
             {
-                player_position_y += 5;
+                player_position_y += 3.5;
             }
             if (util::Contains(keys_pressed, SDLK_RIGHT))
             {
-                player_position_x += 5;
+                player_position_x += 3.5;
                 facing_left = false;
             }
             if (util::Contains(keys_pressed, SDLK_LEFT))
             {
-                player_position_x -= 5;
+                player_position_x -= 3.5;
                 facing_left = true;
             }
+            if (util::Contains(keys_pressed, SDLK_p))
+            {
+                std::cout << player_position_x << "\n";
+            }
 
-            float screen_center_x = std::clamp(player_position_x, STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
+            float camera_center_x = std::clamp(player_position_x, STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
 
-            // player_rect.x = (int)(player_position_x - screen_center_x + player_offset_x);
-            DrawPlayerAtPosition(player_position_x, screen_center_x, player_rect);
+            // player_rect.x = (int)(player_position_x - camera_center_x + player_offset_x);
+            DrawAtPosition(player_position_x, camera_center_x, PLAYER_WIDTH / 2, player_rect);
             // player_rect.y = (int)player_y;
-            fg_rect.x = fg_rect_x - screen_center_x + player_offset_x;
+            DrawAtPosition(fg_rect_x, camera_center_x, 0, fg_rect);
+            // fg_rect.x = fg_rect_x - camera_center_x + player_offset_x;
 
             cloud_x -= .35;
             if (cloud_x < 0)
@@ -177,7 +191,7 @@ int main(int argc, char **argv)
             cloud_rect_left.x = cloud_x - SCREEN_W;
             cloud_rect_right.x = cloud_x;
 
-            bg_rect_right.x = (int)(-0.22 * screen_center_x) % SCREEN_W + player_offset_x;
+            bg_rect_right.x = (int)(-0.22 * camera_center_x) % SCREEN_W + player_offset_x;
             if (bg_rect_right.x < 0)
                 bg_rect_right.x += SCREEN_W;
             bg_rect_left.x = bg_rect_right.x - SCREEN_W;

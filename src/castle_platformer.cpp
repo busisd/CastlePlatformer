@@ -10,6 +10,14 @@
 #include "util.h"
 #include "player.h"
 
+// TODO:
+// * Pull in stage data from XML file
+// * Draw stage rects with texture
+// * Use area grouping to only calculate collision with nearby rects
+//   * Before running the game: For every 50x50 sector in the stage, do a Collision check (e.g. check the entire grid of the stage)
+//   * Once the game starts, use that data to only compare collisions for sectors the player is actually in
+// * Bound camera so that it can't show off-stage stuff at all (instead of just the center being bounded)
+
 std::list<SDL_Texture *> g_textures;
 
 SDL_Texture *LoadTexture(std::string path, SDL_Renderer *renderer)
@@ -43,8 +51,12 @@ void DestroyTextures()
  * It's based on Player Position; camera will try to focus on a point centered on
  * the player's X, and above-center in the Y direction.
  *
- * The Game Area is an 800 by 450 rectangle (16:9 ratio) centered at 0,0.
+ * The Camera Area is an 800 by 450 rectangle (16:9 ratio) centered at 0,0.
  * Bounds: (-400, 400) X; (-225, 225) Y
+ * Objects with Game Coordinates are rendered within the Camera Area relative
+ * to the Camera Position. For example: If the camera is at (30, 30) and an
+ * object is at (40, 40), it would be rendered at a Camera Position of (10, 10),
+ * which would be converted to its true coordinate on the screen.
  */
 
 // SCREEN CONSTANTS (Eventually should adapt to window size)
@@ -57,14 +69,18 @@ const int PLAYER_HEIGHT = 153;
 const int GROUND_HEIGHT = 473;
 
 // GAME CONSTANTS (Regardless of window size)
-const int GAME_AREA_W = 800;
-const int GAME_AREA_H = 450;
+const int CAMERA_AREA_W = 800;
+const int CAMERA_AREA_H = 450;
 
 const double STAGE_BOUND_LEFT = -500.0;
 const double STAGE_BOUND_RIGHT = 500.0;
-
-const double STAGE_BOUND_BOTTOM = -100.0;
+const double STAGE_BOUND_BOTTOM = -325.0;
 const double STAGE_BOUND_TOP = 400.0;
+
+const double CAMERA_BOUND_LEFT = STAGE_BOUND_LEFT + CAMERA_AREA_W / 2;
+const double CAMERA_BOUND_RIGHT = STAGE_BOUND_RIGHT - CAMERA_AREA_W / 2;
+const double CAMERA_BOUND_BOTTOM = STAGE_BOUND_BOTTOM + CAMERA_AREA_H / 2;
+const double CAMERA_BOUND_TOP = STAGE_BOUND_TOP - CAMERA_AREA_H / 2;
 
 const double GAME_GROUND_HEIGHT = -100.0;
 
@@ -72,7 +88,7 @@ const int PLAYER_HITBOX_WIDTH = 46;
 
 // Conversion from Game to Screen position
 // TODO: Game should maintain ratio while displaying as large as possible
-double GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / GAME_AREA_W;
+double GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / CAMERA_AREA_W;
 
 int TransformGameXToWindowX(double game_x)
 {
@@ -250,8 +266,8 @@ int main(int argc, char **argv)
                 }
             }
 
-            cameraCenter.x = std::clamp(player.rect.x + (player.rect.w / 2.0), STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
-            cameraCenter.y = std::clamp(player.rect.y + 80, STAGE_BOUND_BOTTOM, STAGE_BOUND_TOP);
+            cameraCenter.x = std::clamp(player.rect.x + (player.rect.w / 2.0), CAMERA_BOUND_LEFT, CAMERA_BOUND_RIGHT);
+            cameraCenter.y = std::clamp(player.rect.y + 80, CAMERA_BOUND_BOTTOM, CAMERA_BOUND_TOP);
 
             DrawAtPosition2(player.rect, cameraCenter, player_rect);
             DrawAtPosition(greenbox1Rect, cameraCenter, greenbox);

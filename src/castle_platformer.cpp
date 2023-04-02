@@ -5,8 +5,9 @@
 #include <SDL_image.h>
 #include <chrono>
 #include <list>
-#include "util.h"
 #include <algorithm>
+#include "util.h"
+#include "player.h"
 
 std::list<SDL_Texture *> g_textures;
 
@@ -62,7 +63,10 @@ const int GAME_AREA_H = 450;
 const float STAGE_BOUND_LEFT = -500.0f;
 const float STAGE_BOUND_RIGHT = 500.0f;
 
+const int PLAYER_HITBOX_WIDTH = 46;
+
 // Conversion from Game to Screen position
+// TODO: Game should maintain ratio while displaying as large as possible
 float SCREEN_POSITION_MULTIPLIER = (float)SCREEN_W / GAME_AREA_W;
 
 int TransformGameXToWindowX(int game_x)
@@ -70,9 +74,16 @@ int TransformGameXToWindowX(int game_x)
     return (game_x * SCREEN_POSITION_MULTIPLIER) + (SCREEN_W / 2);
 }
 
-void DrawAtPosition(float position_x, float camera_center_x, float offset, SDL_Rect &draw_rect)
+int TransformGameYToWindowY(int game_y)
+{
+    // TODO: Flip coordinates so game down is negative
+    return 0;
+}
+
+void DrawAtPosition(float position_x, float camera_center_x, float position_y, float camera_center_y, float offset, SDL_Rect &draw_rect)
 {
     draw_rect.x = (TransformGameXToWindowX(position_x - camera_center_x) - (offset));
+    draw_rect.y = position_y;
 }
 
 int main(int argc, char **argv)
@@ -89,11 +100,13 @@ int main(int argc, char **argv)
     SDL_Texture *clouds_texture = LoadTexture(project_dir_path + "/assets/clouds.png", renderer);
     SDL_Texture *moon_texture = LoadTexture(project_dir_path + "/assets/moon.png", renderer);
 
-    SDL_Rect player_rect = {x : SCREEN_W / 2 - (PLAYER_WIDTH / 2), y : GROUND_HEIGHT - PLAYER_HEIGHT, w : PLAYER_WIDTH, h : PLAYER_HEIGHT};
+    Player player;
+
+    SDL_Rect player_rect = {x : 0, y : GROUND_HEIGHT - PLAYER_HEIGHT, w : (int)(PLAYER_HITBOX_WIDTH * SCREEN_POSITION_MULTIPLIER), h : PLAYER_HEIGHT};
     bool facing_left = false;
 
-    float player_position_x = 0.0;
-    float player_position_y = 0.0;
+    // float player_position_x = 0.0;
+    // float player_position_y = 0.0;
     // float player_x = 0.0;
     // float player_y = 0.0;
     float player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
@@ -102,7 +115,7 @@ int main(int argc, char **argv)
 
     // int fg_rect_x = SCREEN_W / 2 - (300 / 2);
     int fg_rect_x = 400;
-    SDL_Rect fg_rect = {x : fg_rect_x, y : GROUND_HEIGHT, w : (int)(100*SCREEN_POSITION_MULTIPLIER), h : SCREEN_H - GROUND_HEIGHT};
+    SDL_Rect fg_rect = {x : fg_rect_x, y : GROUND_HEIGHT, w : (int)(100 * SCREEN_POSITION_MULTIPLIER), h : SCREEN_H - GROUND_HEIGHT};
 
     float cloud_x = 0.0;
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
@@ -156,33 +169,48 @@ int main(int argc, char **argv)
 
             if (util::Contains(keys_pressed, SDLK_UP))
             {
-                player_position_y -= 3.5;
+                if (player.isGrounded)
+                {
+                    player.yAccel = 13.0f + 0.6f;
+                    player.isGrounded = false;
+                }
             }
             if (util::Contains(keys_pressed, SDLK_DOWN))
             {
-                player_position_y += 3.5;
             }
             if (util::Contains(keys_pressed, SDLK_RIGHT))
             {
-                player_position_x += 3.5;
+                player.x += 3.5;
                 facing_left = false;
             }
             if (util::Contains(keys_pressed, SDLK_LEFT))
             {
-                player_position_x -= 3.5;
+                player.x -= 3.5;
                 facing_left = true;
             }
             if (util::Contains(keys_pressed, SDLK_p))
             {
-                std::cout << player_position_x << "\n";
+                std::cout << player.x << "\n";
             }
 
-            float camera_center_x = std::clamp(player_position_x, STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
+            if (!player.isGrounded)
+            {
+                player.yAccel -= 0.6f;
+                player.y += player.yAccel;
+                if (player.y < 0)
+                {
+                    player.y = 0;
+                    player.yAccel = 0;
+                    player.isGrounded = true;
+                }
+            }
+
+            float camera_center_x = std::clamp(player.x, STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
 
             // player_rect.x = (int)(player_position_x - camera_center_x + player_offset_x);
-            DrawAtPosition(player_position_x, camera_center_x, PLAYER_WIDTH / 2, player_rect);
+            DrawAtPosition(player.x, camera_center_x, GROUND_HEIGHT - PLAYER_HEIGHT - player.y, 0, PLAYER_WIDTH / 2, player_rect);
             // player_rect.y = (int)player_y;
-            DrawAtPosition(fg_rect_x, camera_center_x, 0, fg_rect);
+            DrawAtPosition(fg_rect_x, camera_center_x, GROUND_HEIGHT, 0, 0, fg_rect);
             // fg_rect.x = fg_rect_x - camera_center_x + player_offset_x;
 
             cloud_x -= .35;

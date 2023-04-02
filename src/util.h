@@ -26,6 +26,9 @@ namespace util
   };
 
   bool Collides(Rect rect1, Rect rect2);
+
+  template <typename T, typename... Args>
+  void prettyLog(T t, Args... args);
 }
 
 #include "util.tcc"

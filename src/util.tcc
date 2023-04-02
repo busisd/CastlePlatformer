@@ -27,4 +27,17 @@ namespace util
         return (rect1.x + rect1.w) > rect2.x && (rect2.x + rect2.w) > rect1.x &&
                (rect1.y + rect1.h) > rect2.y && (rect2.y + rect2.h) > rect1.y;
     }
+
+    template <typename T>
+    void prettyLog(T t)
+    {
+        std::cout << t << std::endl;
+    }
+
+    template <typename T, typename... Args>
+    void prettyLog(T t, Args... args)
+    {
+        std::cout << t << " ";
+        prettyLog(args...);
+    }
 }

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <list>
 #include <algorithm>
+#include <cmath>
 #include "util.h"
 #include "player.h"
 
@@ -75,12 +76,12 @@ double GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / GAME_AREA_W;
 
 int TransformGameXToWindowX(double game_x)
 {
-    return (game_x * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_W / 2);
+    return std::round((game_x * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_W / 2));
 }
 
 int TransformGameYToWindowY(double game_y)
 {
-    return ((-game_y) * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_H / 2);
+    return std::round((-game_y) * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_H / 2);
 }
 
 void DrawAtPosition(util::Rect rect, util::Point cameraCenter, SDL_Rect &draw_rect)
@@ -90,6 +91,20 @@ void DrawAtPosition(util::Rect rect, util::Point cameraCenter, SDL_Rect &draw_re
     draw_rect.x = TransformGameXToWindowX(rect.x - cameraCenter.x);
     draw_rect.h = rect.h * GAME_TO_SCREEN_MULTIPLIER;
     draw_rect.y = TransformGameYToWindowY(rect.y - cameraCenter.y) - draw_rect.h;
+}
+
+void DrawAtPosition2(util::Rect rect, util::Point cameraCenter, SDL_Rect &draw_rect)
+{
+    // TODO: Don't recalculate height/width every time?
+    draw_rect.w = rect.w * GAME_TO_SCREEN_MULTIPLIER;
+    draw_rect.x = TransformGameXToWindowX(rect.x - cameraCenter.x);
+    draw_rect.h = rect.h * GAME_TO_SCREEN_MULTIPLIER;
+    draw_rect.y = TransformGameYToWindowY(rect.y - cameraCenter.y) - draw_rect.h;
+}
+
+void PrintDrawRect(SDL_Rect rect)
+{
+    std::cout << "x: " << rect.x << " y: " << rect.y << " w: " << rect.w << " h: " << rect.h << "\n";
 }
 
 int main(int argc, char **argv)
@@ -112,10 +127,6 @@ int main(int argc, char **argv)
     SDL_Rect player_rect = {x : 0, y : GROUND_HEIGHT - PLAYER_HEIGHT, w : (int)(PLAYER_HITBOX_WIDTH * GAME_TO_SCREEN_MULTIPLIER), h : PLAYER_HEIGHT};
     bool facing_left = false;
 
-    // double player_position_x = 0.0;
-    // double player_position_y = 0.0;
-    // double player_x = 0.0;
-    // double player_y = 0.0;
     double player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
@@ -127,7 +138,7 @@ int main(int argc, char **argv)
     util::Rect greenbox1Rect = {-500, -325, 550, 225};
     util::Rect greenbox2Rect = {50, -100, 100, 200};
     util::Rect greenbox3Rect = {-150, -100, 100, 100};
-    util::Rect fgRect = {400, -325, player.rect.w, 225};
+    util::Rect fgRect = {300, -325, player.rect.w, 225};
     std::list<util::Rect> rects = {greenbox1Rect, greenbox2Rect, greenbox3Rect, fgRect};
 
     double cloud_x = 0.0;
@@ -221,30 +232,28 @@ int main(int argc, char **argv)
             }
             if (util::Contains(keys_pressed, SDLK_p))
             {
-                std::cout << player.rect.x << ", " << player.rect.y << "\n";
+                util::prettyLog("x:", player.rect.x, "y:", player.rect.y);
             }
 
-            if (!player.isGrounded)
+            player.yAccel -= 0.6;
+            player.yAccel = std::max(player.yAccel, player.maxFallSpeed);
+            player.rect.y += player.yAccel;
+            player.isGrounded = false;
+            for (util::Rect r : rects)
             {
-                player.yAccel -= 0.6;
-                player.yAccel = std::max(player.yAccel, player.maxFallSpeed);
-                player.rect.y += player.yAccel;
-                for (util::Rect r : rects)
+                if (util::Collides(player.rect, r))
                 {
-                    if (util::Collides(player.rect, r))
-                    {
-                        player.rect.y = r.y + r.h;
-                        player.yAccel = 0;
-                        player.isGrounded = true;
-                        break;
-                    }
+                    player.rect.y = r.y + r.h;
+                    player.yAccel = 0;
+                    player.isGrounded = true;
+                    break;
                 }
             }
 
             cameraCenter.x = std::clamp(player.rect.x + (player.rect.w / 2.0), STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
             cameraCenter.y = std::clamp(player.rect.y + 80, STAGE_BOUND_BOTTOM, STAGE_BOUND_TOP);
 
-            DrawAtPosition(player.rect, cameraCenter, player_rect);
+            DrawAtPosition2(player.rect, cameraCenter, player_rect);
             DrawAtPosition(greenbox1Rect, cameraCenter, greenbox);
             DrawAtPosition(greenbox2Rect, cameraCenter, greenbox2);
             DrawAtPosition(greenbox3Rect, cameraCenter, greenbox3);

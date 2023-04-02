@@ -37,11 +37,10 @@ void DestroyTextures()
 
 /**
  * Notes on position:
- * Player Position will be a single point that the camera will try to focus on,
+ * Camera Position will be a single point that the camera will try to focus on,
  * within bounds.
- * Player hitbox/sprite will be drawn around that Position.
- * Usually that means it's the center of the sprite, but might not be in case of
- * sprite changing size/ratio.
+ * It's based on Player Position; camera will try to focus on a point centered on
+ * the player's X, and above-center in the Y direction.
  *
  * The Game Area is an 800 by 450 rectangle (16:9 ratio) centered at 0,0.
  * Bounds: (-400, 400) X; (-225, 225) Y
@@ -60,39 +59,39 @@ const int GROUND_HEIGHT = 473;
 const int GAME_AREA_W = 800;
 const int GAME_AREA_H = 450;
 
-const float STAGE_BOUND_LEFT = -500.0f;
-const float STAGE_BOUND_RIGHT = 500.0f;
+const double STAGE_BOUND_LEFT = -500.0;
+const double STAGE_BOUND_RIGHT = 500.0;
 
-const float STAGE_BOUND_BOTTOM = 0.0f;
-const float STAGE_BOUND_TOP = 400.0f;
+const double STAGE_BOUND_BOTTOM = -400.0;
+const double STAGE_BOUND_TOP = 400.0;
 
-const float GAME_GROUND_HEIGHT = -100.0f;
+const double GAME_GROUND_HEIGHT = -100.0;
 
 const int PLAYER_HITBOX_WIDTH = 46;
 
 // Conversion from Game to Screen position
 // TODO: Game should maintain ratio while displaying as large as possible
-float GAME_TO_SCREEN_MULTIPLIER = (float)SCREEN_W / GAME_AREA_W;
+double GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / GAME_AREA_W;
 
-int TransformGameXToWindowX(int game_x)
+int TransformGameXToWindowX(double game_x)
 {
     return (game_x * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_W / 2);
 }
 
-int TransformGameYToWindowY(int game_y)
+int TransformGameYToWindowY(double game_y)
 {
     return ((-game_y) * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_H / 2);
 }
 
-void DrawAtPosition(float position_x, float camera_center_x, float width, float offset_x,
-                    float position_y, float camera_center_y, float height, float offset_y,
+void DrawAtPosition(double position_x, double camera_center_x, double width,
+                    double position_y, double camera_center_y, double height,
                     SDL_Rect &draw_rect)
 {
     // TODO: Don't recalculate height/width every time?
     draw_rect.w = width * GAME_TO_SCREEN_MULTIPLIER;
-    draw_rect.x = TransformGameXToWindowX(position_x - camera_center_x) - offset_x;
+    draw_rect.x = TransformGameXToWindowX(position_x - camera_center_x);
     draw_rect.h = height * GAME_TO_SCREEN_MULTIPLIER;
-    draw_rect.y = TransformGameYToWindowY(position_y - camera_center_y) - offset_y - draw_rect.h;
+    draw_rect.y = TransformGameYToWindowY(position_y - camera_center_y) - draw_rect.h;
 }
 
 int main(int argc, char **argv)
@@ -114,11 +113,11 @@ int main(int argc, char **argv)
     SDL_Rect player_rect = {x : 0, y : GROUND_HEIGHT - PLAYER_HEIGHT, w : (int)(PLAYER_HITBOX_WIDTH * GAME_TO_SCREEN_MULTIPLIER), h : PLAYER_HEIGHT};
     bool facing_left = false;
 
-    // float player_position_x = 0.0;
-    // float player_position_y = 0.0;
-    // float player_x = 0.0;
-    // float player_y = 0.0;
-    float player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
+    // double player_position_x = 0.0;
+    // double player_position_y = 0.0;
+    // double player_x = 0.0;
+    // double player_y = 0.0;
+    double player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
@@ -129,7 +128,7 @@ int main(int argc, char **argv)
     SDL_Rect greenbox = {x : 0, y : 0, w : 30, h : 30};
     SDL_Rect greenbox2 = {x : 0, y : 0, w : 30, h : 30};
 
-    float cloud_x = 0.0;
+    double cloud_x = 0.0;
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
@@ -183,7 +182,7 @@ int main(int argc, char **argv)
             {
                 if (player.isGrounded)
                 {
-                    player.yAccel = 13.0f + 0.6f;
+                    player.yAccel = 13.0 + 0.6;
                     player.isGrounded = false;
                 }
                 // player.y += 1;
@@ -204,12 +203,11 @@ int main(int argc, char **argv)
             }
             if (util::Contains(keys_pressed, SDLK_p))
             {
-                std::cout << player.x << "\n";
             }
 
             if (!player.isGrounded)
             {
-                player.yAccel -= 0.6f;
+                player.yAccel -= 0.6;
                 player.y += player.yAccel;
                 if (player.y < GAME_GROUND_HEIGHT)
                 {
@@ -219,23 +217,17 @@ int main(int argc, char **argv)
                 }
             }
 
-            float camera_center_x = std::clamp(player.x, STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
-            float camera_center_y = std::clamp(player.y, STAGE_BOUND_BOTTOM, STAGE_BOUND_TOP);
+            double camera_center_x = std::clamp(player.x + (player.width / 2.0), STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
+            double camera_center_y = std::clamp(player.y + player.height, STAGE_BOUND_BOTTOM, STAGE_BOUND_TOP);
 
-            DrawAtPosition(player.x, camera_center_x, player.width, PLAYER_WIDTH / 2,
-                           player.y, camera_center_y, player.height, 0, player_rect);
-            DrawAtPosition(fg_rect_x, camera_center_x, player.width, 0,
-                           -225, camera_center_y, 125, 0, fg_rect);
-            DrawAtPosition(-50, camera_center_x, 100, 0,
-                           -225, camera_center_y, 125, 0, greenbox);
-            DrawAtPosition(50, camera_center_x, 100, 0,
-                           -100, camera_center_y, 100, 0, greenbox2);
-
-            // std::cout << "Camera: " << camera_center_x << ", " << camera_center_y << "    ";
-            // std::cout << "Player: " << player.x << ", " << player.y << "\n";
-            // std::cout << "greenbox: " << greenbox.x << ", " << greenbox.y << ", "
-            //           << greenbox.x + greenbox.w << ", " << greenbox.y + greenbox.h
-            //           << ", camera center y: " << camera_center_y << ", player y: " << player.y << "\n";
+            DrawAtPosition(player.x, camera_center_x, player.width,
+                           player.y, camera_center_y, player.height, player_rect);
+            DrawAtPosition(fg_rect_x, camera_center_x, player.width,
+                           -225, camera_center_y, 125, fg_rect);
+            DrawAtPosition(-50, camera_center_x, 100,
+                           -225, camera_center_y, 125, greenbox);
+            DrawAtPosition(50, camera_center_x, 100,
+                           -100, camera_center_y, 200, greenbox2);
 
             cloud_x -= .35;
             if (cloud_x < 0)

@@ -1,6 +1,6 @@
 // https://stackoverflow.com/questions/10632251/undefined-reference-to-template-function
 #ifndef CASTLE_PLATFORMER_UTIL
-#error Do not include this file directly, include example.hpp instead
+#error Do not include this file directly, include util.h instead
 #endif
 
 namespace util
@@ -20,5 +20,11 @@ namespace util
     bool Contains(std::unordered_set<T> const &s, T t)
     {
         return s.find(t) != s.end();
+    }
+
+    bool Collides(Rect rect1, Rect rect2)
+    {
+        return (rect1.x + rect1.w) > rect2.x && (rect2.x + rect2.w) > rect1.x &&
+               (rect1.y + rect1.h) > rect2.y && (rect2.y + rect2.h) > rect1.y;
     }
 }

@@ -62,7 +62,7 @@ const int GAME_AREA_H = 450;
 const double STAGE_BOUND_LEFT = -500.0;
 const double STAGE_BOUND_RIGHT = 500.0;
 
-const double STAGE_BOUND_BOTTOM = -400.0;
+const double STAGE_BOUND_BOTTOM = -100.0;
 const double STAGE_BOUND_TOP = 400.0;
 
 const double GAME_GROUND_HEIGHT = -100.0;
@@ -83,15 +83,13 @@ int TransformGameYToWindowY(double game_y)
     return ((-game_y) * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_H / 2);
 }
 
-void DrawAtPosition(double position_x, double camera_center_x, double width,
-                    double position_y, double camera_center_y, double height,
-                    SDL_Rect &draw_rect)
+void DrawAtPosition(util::Rect rect, util::Point cameraCenter, SDL_Rect &draw_rect)
 {
     // TODO: Don't recalculate height/width every time?
-    draw_rect.w = width * GAME_TO_SCREEN_MULTIPLIER;
-    draw_rect.x = TransformGameXToWindowX(position_x - camera_center_x);
-    draw_rect.h = height * GAME_TO_SCREEN_MULTIPLIER;
-    draw_rect.y = TransformGameYToWindowY(position_y - camera_center_y) - draw_rect.h;
+    draw_rect.w = rect.w * GAME_TO_SCREEN_MULTIPLIER;
+    draw_rect.x = TransformGameXToWindowX(rect.x - cameraCenter.x);
+    draw_rect.h = rect.h * GAME_TO_SCREEN_MULTIPLIER;
+    draw_rect.y = TransformGameYToWindowY(rect.y - cameraCenter.y) - draw_rect.h;
 }
 
 int main(int argc, char **argv)
@@ -109,6 +107,7 @@ int main(int argc, char **argv)
     SDL_Texture *moon_texture = LoadTexture(project_dir_path + "/assets/moon.png", renderer);
 
     Player player;
+    util::Point cameraCenter;
 
     SDL_Rect player_rect = {x : 0, y : GROUND_HEIGHT - PLAYER_HEIGHT, w : (int)(PLAYER_HITBOX_WIDTH * GAME_TO_SCREEN_MULTIPLIER), h : PLAYER_HEIGHT};
     bool facing_left = false;
@@ -121,12 +120,15 @@ int main(int argc, char **argv)
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
-    // int fg_rect_x = SCREEN_W / 2 - (300 / 2);
-    int fg_rect_x = 400;
-    SDL_Rect fg_rect = {x : fg_rect_x, y : GROUND_HEIGHT, w : (int)(100 * GAME_TO_SCREEN_MULTIPLIER), h : SCREEN_H - GROUND_HEIGHT};
-
     SDL_Rect greenbox = {x : 0, y : 0, w : 30, h : 30};
     SDL_Rect greenbox2 = {x : 0, y : 0, w : 30, h : 30};
+    SDL_Rect greenbox3 = {x : 0, y : 0, w : 30, h : 30};
+    SDL_Rect fg_rect = {x : 0, y : 0, w : 30, h : 30};
+    util::Rect greenbox1Rect = {-500, -325, 550, 225};
+    util::Rect greenbox2Rect = {50, -100, 100, 200};
+    util::Rect greenbox3Rect = {-150, -100, 100, 100};
+    util::Rect fgRect = {400, -325, player.rect.w, 225};
+    std::list<util::Rect> rects = {greenbox1Rect, greenbox2Rect, greenbox3Rect, fgRect};
 
     double cloud_x = 0.0;
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
@@ -185,49 +187,68 @@ int main(int argc, char **argv)
                     player.yAccel = 13.0 + 0.6;
                     player.isGrounded = false;
                 }
-                // player.y += 1;
+                // player.position.y += 1;
             }
             if (util::Contains(keys_pressed, SDLK_DOWN))
             {
-                // player.y -= 1;
+                // player.position.y -= 1;
             }
             if (util::Contains(keys_pressed, SDLK_RIGHT))
             {
-                player.x += 3.5;
+                player.rect.x += 3.5;
+                for (util::Rect r : rects)
+                {
+                    if (util::Collides(player.rect, r))
+                    {
+                        player.rect.x = r.x - player.rect.w;
+                        break;
+                    }
+                }
                 facing_left = false;
             }
             if (util::Contains(keys_pressed, SDLK_LEFT))
             {
-                player.x -= 3.5;
+                player.rect.x -= 3.5;
+                for (util::Rect r : rects)
+                {
+                    if (util::Collides(player.rect, r))
+                    {
+                        player.rect.x = r.x + r.w;
+                        break;
+                    }
+                }
                 facing_left = true;
             }
             if (util::Contains(keys_pressed, SDLK_p))
             {
+                std::cout << player.rect.x << ", " << player.rect.y << "\n";
             }
 
             if (!player.isGrounded)
             {
                 player.yAccel -= 0.6;
-                player.y += player.yAccel;
-                if (player.y < GAME_GROUND_HEIGHT)
+                player.yAccel = std::max(player.yAccel, player.maxFallSpeed);
+                player.rect.y += player.yAccel;
+                for (util::Rect r : rects)
                 {
-                    player.y = GAME_GROUND_HEIGHT;
-                    player.yAccel = 0;
-                    player.isGrounded = true;
+                    if (util::Collides(player.rect, r))
+                    {
+                        player.rect.y = r.y + r.h;
+                        player.yAccel = 0;
+                        player.isGrounded = true;
+                        break;
+                    }
                 }
             }
 
-            double camera_center_x = std::clamp(player.x + (player.width / 2.0), STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
-            double camera_center_y = std::clamp(player.y + player.height, STAGE_BOUND_BOTTOM, STAGE_BOUND_TOP);
+            cameraCenter.x = std::clamp(player.rect.x + (player.rect.w / 2.0), STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
+            cameraCenter.y = std::clamp(player.rect.y + 80, STAGE_BOUND_BOTTOM, STAGE_BOUND_TOP);
 
-            DrawAtPosition(player.x, camera_center_x, player.width,
-                           player.y, camera_center_y, player.height, player_rect);
-            DrawAtPosition(fg_rect_x, camera_center_x, player.width,
-                           -225, camera_center_y, 125, fg_rect);
-            DrawAtPosition(-50, camera_center_x, 100,
-                           -225, camera_center_y, 125, greenbox);
-            DrawAtPosition(50, camera_center_x, 100,
-                           -100, camera_center_y, 200, greenbox2);
+            DrawAtPosition(player.rect, cameraCenter, player_rect);
+            DrawAtPosition(greenbox1Rect, cameraCenter, greenbox);
+            DrawAtPosition(greenbox2Rect, cameraCenter, greenbox2);
+            DrawAtPosition(greenbox3Rect, cameraCenter, greenbox3);
+            DrawAtPosition(fgRect, cameraCenter, fg_rect);
 
             cloud_x -= .35;
             if (cloud_x < 0)
@@ -235,7 +256,7 @@ int main(int argc, char **argv)
             cloud_rect_left.x = cloud_x - SCREEN_W;
             cloud_rect_right.x = cloud_x;
 
-            bg_rect_right.x = (int)(-0.22 * camera_center_x) % SCREEN_W + player_offset_x;
+            bg_rect_right.x = (int)(-0.22 * cameraCenter.x) % SCREEN_W + player_offset_x;
             if (bg_rect_right.x < 0)
                 bg_rect_right.x += SCREEN_W;
             bg_rect_left.x = bg_rect_right.x - SCREEN_W;
@@ -255,6 +276,7 @@ int main(int argc, char **argv)
             SDL_RenderFillRect(renderer, &fg_rect);
             SDL_RenderFillRect(renderer, &greenbox);
             SDL_RenderFillRect(renderer, &greenbox2);
+            SDL_RenderFillRect(renderer, &greenbox3);
 
             SDL_RenderCopyEx(renderer, king_texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 

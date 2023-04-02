@@ -10,6 +10,22 @@ namespace util
 
   template <typename T>
   bool Contains(std::unordered_set<T> const &s, T t);
+
+  struct Rect
+  {
+    double x;
+    double y;
+    double w;
+    double h;
+  };
+
+  struct Point
+  {
+    double x;
+    double y;
+  };
+
+  bool Collides(Rect rect1, Rect rect2);
 }
 
 #include "util.tcc"

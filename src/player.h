@@ -4,7 +4,7 @@
 class Player
 {
 public:
-  Player() : x(0), y(0), width(46), height(94) {}
+  Player() : x(0), y(-100), width(46), height(94) {}
   float x;
   float y;
   float width;

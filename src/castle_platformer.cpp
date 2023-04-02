@@ -63,27 +63,36 @@ const int GAME_AREA_H = 450;
 const float STAGE_BOUND_LEFT = -500.0f;
 const float STAGE_BOUND_RIGHT = 500.0f;
 
+const float STAGE_BOUND_BOTTOM = 0.0f;
+const float STAGE_BOUND_TOP = 400.0f;
+
+const float GAME_GROUND_HEIGHT = -100.0f;
+
 const int PLAYER_HITBOX_WIDTH = 46;
 
 // Conversion from Game to Screen position
 // TODO: Game should maintain ratio while displaying as large as possible
-float SCREEN_POSITION_MULTIPLIER = (float)SCREEN_W / GAME_AREA_W;
+float GAME_TO_SCREEN_MULTIPLIER = (float)SCREEN_W / GAME_AREA_W;
 
 int TransformGameXToWindowX(int game_x)
 {
-    return (game_x * SCREEN_POSITION_MULTIPLIER) + (SCREEN_W / 2);
+    return (game_x * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_W / 2);
 }
 
 int TransformGameYToWindowY(int game_y)
 {
-    // TODO: Flip coordinates so game down is negative
-    return 0;
+    return ((-game_y) * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_H / 2);
 }
 
-void DrawAtPosition(float position_x, float camera_center_x, float position_y, float camera_center_y, float offset, SDL_Rect &draw_rect)
+void DrawAtPosition(float position_x, float camera_center_x, float width, float offset_x,
+                    float position_y, float camera_center_y, float height, float offset_y,
+                    SDL_Rect &draw_rect)
 {
-    draw_rect.x = (TransformGameXToWindowX(position_x - camera_center_x) - (offset));
-    draw_rect.y = position_y;
+    // TODO: Don't recalculate height/width every time?
+    draw_rect.w = width * GAME_TO_SCREEN_MULTIPLIER;
+    draw_rect.x = TransformGameXToWindowX(position_x - camera_center_x) - offset_x;
+    draw_rect.h = height * GAME_TO_SCREEN_MULTIPLIER;
+    draw_rect.y = TransformGameYToWindowY(position_y - camera_center_y) - offset_y - draw_rect.h;
 }
 
 int main(int argc, char **argv)
@@ -102,7 +111,7 @@ int main(int argc, char **argv)
 
     Player player;
 
-    SDL_Rect player_rect = {x : 0, y : GROUND_HEIGHT - PLAYER_HEIGHT, w : (int)(PLAYER_HITBOX_WIDTH * SCREEN_POSITION_MULTIPLIER), h : PLAYER_HEIGHT};
+    SDL_Rect player_rect = {x : 0, y : GROUND_HEIGHT - PLAYER_HEIGHT, w : (int)(PLAYER_HITBOX_WIDTH * GAME_TO_SCREEN_MULTIPLIER), h : PLAYER_HEIGHT};
     bool facing_left = false;
 
     // float player_position_x = 0.0;
@@ -115,7 +124,10 @@ int main(int argc, char **argv)
 
     // int fg_rect_x = SCREEN_W / 2 - (300 / 2);
     int fg_rect_x = 400;
-    SDL_Rect fg_rect = {x : fg_rect_x, y : GROUND_HEIGHT, w : (int)(100 * SCREEN_POSITION_MULTIPLIER), h : SCREEN_H - GROUND_HEIGHT};
+    SDL_Rect fg_rect = {x : fg_rect_x, y : GROUND_HEIGHT, w : (int)(100 * GAME_TO_SCREEN_MULTIPLIER), h : SCREEN_H - GROUND_HEIGHT};
+
+    SDL_Rect greenbox = {x : 0, y : 0, w : 30, h : 30};
+    SDL_Rect greenbox2 = {x : 0, y : 0, w : 30, h : 30};
 
     float cloud_x = 0.0;
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
@@ -174,9 +186,11 @@ int main(int argc, char **argv)
                     player.yAccel = 13.0f + 0.6f;
                     player.isGrounded = false;
                 }
+                // player.y += 1;
             }
             if (util::Contains(keys_pressed, SDLK_DOWN))
             {
+                // player.y -= 1;
             }
             if (util::Contains(keys_pressed, SDLK_RIGHT))
             {
@@ -197,21 +211,31 @@ int main(int argc, char **argv)
             {
                 player.yAccel -= 0.6f;
                 player.y += player.yAccel;
-                if (player.y < 0)
+                if (player.y < GAME_GROUND_HEIGHT)
                 {
-                    player.y = 0;
+                    player.y = GAME_GROUND_HEIGHT;
                     player.yAccel = 0;
                     player.isGrounded = true;
                 }
             }
 
             float camera_center_x = std::clamp(player.x, STAGE_BOUND_LEFT, STAGE_BOUND_RIGHT);
+            float camera_center_y = std::clamp(player.y, STAGE_BOUND_BOTTOM, STAGE_BOUND_TOP);
 
-            // player_rect.x = (int)(player_position_x - camera_center_x + player_offset_x);
-            DrawAtPosition(player.x, camera_center_x, GROUND_HEIGHT - PLAYER_HEIGHT - player.y, 0, PLAYER_WIDTH / 2, player_rect);
-            // player_rect.y = (int)player_y;
-            DrawAtPosition(fg_rect_x, camera_center_x, GROUND_HEIGHT, 0, 0, fg_rect);
-            // fg_rect.x = fg_rect_x - camera_center_x + player_offset_x;
+            DrawAtPosition(player.x, camera_center_x, player.width, PLAYER_WIDTH / 2,
+                           player.y, camera_center_y, player.height, 0, player_rect);
+            DrawAtPosition(fg_rect_x, camera_center_x, player.width, 0,
+                           -225, camera_center_y, 125, 0, fg_rect);
+            DrawAtPosition(-50, camera_center_x, 100, 0,
+                           -225, camera_center_y, 125, 0, greenbox);
+            DrawAtPosition(50, camera_center_x, 100, 0,
+                           -100, camera_center_y, 100, 0, greenbox2);
+
+            // std::cout << "Camera: " << camera_center_x << ", " << camera_center_y << "    ";
+            // std::cout << "Player: " << player.x << ", " << player.y << "\n";
+            // std::cout << "greenbox: " << greenbox.x << ", " << greenbox.y << ", "
+            //           << greenbox.x + greenbox.w << ", " << greenbox.y + greenbox.h
+            //           << ", camera center y: " << camera_center_y << ", player y: " << player.y << "\n";
 
             cloud_x -= .35;
             if (cloud_x < 0)
@@ -237,6 +261,8 @@ int main(int argc, char **argv)
             SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_right);
 
             SDL_RenderFillRect(renderer, &fg_rect);
+            SDL_RenderFillRect(renderer, &greenbox);
+            SDL_RenderFillRect(renderer, &greenbox2);
 
             SDL_RenderCopyEx(renderer, king_texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 

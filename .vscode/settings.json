@@ -52,6 +52,19 @@
     "typeinfo": "cpp",
     "list": "cpp",
     "filesystem": "cpp",
-    "codecvt": "cpp"
-  }
+    "codecvt": "cpp",
+    "any": "cpp",
+    "cstring": "cpp",
+    "forward_list": "cpp",
+    "map": "cpp",
+    "optional": "cpp",
+    "iomanip": "cpp",
+    "ranges": "cpp",
+    "span": "cpp",
+    "valarray": "cpp",
+    "fstream": "cpp"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
 }

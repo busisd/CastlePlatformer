@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <unordered_set>
 #include <SDL.h>
@@ -9,6 +10,7 @@
 #include <cmath>
 #include "util.h"
 #include "player.h"
+#include <json.hpp>
 
 // TODO:
 // * Pull in stage data from XML file
@@ -100,28 +102,25 @@ int TransformGameYToWindowY(double game_y)
     return std::round((-game_y) * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_H / 2);
 }
 
-void DrawAtPosition(util::Rect rect, util::Point cameraCenter, SDL_Rect &draw_rect)
+void DrawAtPosition(util::Rect rect, util::Point cameraCenter, SDL_Rect &drawRect)
 {
     // TODO: Don't recalculate height/width every time?
-    draw_rect.w = rect.w * GAME_TO_SCREEN_MULTIPLIER;
-    draw_rect.x = TransformGameXToWindowX(rect.x - cameraCenter.x);
-    draw_rect.h = rect.h * GAME_TO_SCREEN_MULTIPLIER;
-    draw_rect.y = TransformGameYToWindowY(rect.y - cameraCenter.y) - draw_rect.h;
-}
-
-void DrawAtPosition2(util::Rect rect, util::Point cameraCenter, SDL_Rect &draw_rect)
-{
-    // TODO: Don't recalculate height/width every time?
-    draw_rect.w = rect.w * GAME_TO_SCREEN_MULTIPLIER;
-    draw_rect.x = TransformGameXToWindowX(rect.x - cameraCenter.x);
-    draw_rect.h = rect.h * GAME_TO_SCREEN_MULTIPLIER;
-    draw_rect.y = TransformGameYToWindowY(rect.y - cameraCenter.y) - draw_rect.h;
+    drawRect.w = rect.w * GAME_TO_SCREEN_MULTIPLIER;
+    drawRect.x = TransformGameXToWindowX(rect.x - cameraCenter.x);
+    drawRect.h = rect.h * GAME_TO_SCREEN_MULTIPLIER;
+    drawRect.y = TransformGameYToWindowY(rect.y - cameraCenter.y) - drawRect.h;
 }
 
 void PrintDrawRect(SDL_Rect rect)
 {
     std::cout << "x: " << rect.x << " y: " << rect.y << " w: " << rect.w << " h: " << rect.h << "\n";
 }
+
+struct DrawableTerrain
+{
+    SDL_Rect drawRect;
+    util::Rect rect;
+};
 
 int main(int argc, char **argv)
 {
@@ -137,6 +136,10 @@ int main(int argc, char **argv)
     SDL_Texture *clouds_texture = LoadTexture(project_dir_path + "/assets/clouds.png", renderer);
     SDL_Texture *moon_texture = LoadTexture(project_dir_path + "/assets/moon.png", renderer);
 
+    std::ifstream f(project_dir_path + "/assets/stage1.json");
+    nlohmann::json stageData = nlohmann::json::parse(f);
+    std::cout << stageData << std::endl;
+
     Player player;
     util::Point cameraCenter;
 
@@ -147,15 +150,14 @@ int main(int argc, char **argv)
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
-    SDL_Rect greenbox = {x : 0, y : 0, w : 30, h : 30};
-    SDL_Rect greenbox2 = {x : 0, y : 0, w : 30, h : 30};
-    SDL_Rect greenbox3 = {x : 0, y : 0, w : 30, h : 30};
-    SDL_Rect fg_rect = {x : 0, y : 0, w : 30, h : 30};
-    util::Rect greenbox1Rect = {-500, -325, 550, 225};
-    util::Rect greenbox2Rect = {50, -100, 100, 200};
-    util::Rect greenbox3Rect = {-150, -100, 100, 100};
-    util::Rect fgRect = {300, -325, player.rect.w, 225};
-    std::list<util::Rect> rects = {greenbox1Rect, greenbox2Rect, greenbox3Rect, fgRect};
+    std::list<DrawableTerrain> drawableTerrains;
+    for (auto terrainPiece : stageData["terrain"])
+    {
+        drawableTerrains.push_back({{}, {x : terrainPiece["x"],
+                                         y : terrainPiece["y"],
+                                         w : terrainPiece["w"],
+                                         h : terrainPiece["h"]}});
+    }
 
     double cloud_x = 0.0;
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
@@ -223,11 +225,11 @@ int main(int argc, char **argv)
             if (util::Contains(keys_pressed, SDLK_RIGHT))
             {
                 player.rect.x += 3.5;
-                for (util::Rect r : rects)
+                for (DrawableTerrain &drawableTerrain : drawableTerrains)
                 {
-                    if (util::Collides(player.rect, r))
+                    if (util::Collides(player.rect, drawableTerrain.rect))
                     {
-                        player.rect.x = r.x - player.rect.w;
+                        player.rect.x = drawableTerrain.rect.x - player.rect.w;
                         break;
                     }
                 }
@@ -236,11 +238,11 @@ int main(int argc, char **argv)
             if (util::Contains(keys_pressed, SDLK_LEFT))
             {
                 player.rect.x -= 3.5;
-                for (util::Rect r : rects)
+                for (DrawableTerrain &drawableTerrain : drawableTerrains)
                 {
-                    if (util::Collides(player.rect, r))
+                    if (util::Collides(player.rect, drawableTerrain.rect))
                     {
-                        player.rect.x = r.x + r.w;
+                        player.rect.x = drawableTerrain.rect.x + drawableTerrain.rect.w;
                         break;
                     }
                 }
@@ -255,11 +257,11 @@ int main(int argc, char **argv)
             player.yAccel = std::max(player.yAccel, player.maxFallSpeed);
             player.rect.y += player.yAccel;
             player.isGrounded = false;
-            for (util::Rect r : rects)
+            for (DrawableTerrain &drawableTerrain : drawableTerrains)
             {
-                if (util::Collides(player.rect, r))
+                if (util::Collides(player.rect, drawableTerrain.rect))
                 {
-                    player.rect.y = r.y + r.h;
+                    player.rect.y = drawableTerrain.rect.y + drawableTerrain.rect.h;
                     player.yAccel = 0;
                     player.isGrounded = true;
                     break;
@@ -269,11 +271,15 @@ int main(int argc, char **argv)
             cameraCenter.x = std::clamp(player.rect.x + (player.rect.w / 2.0), CAMERA_BOUND_LEFT, CAMERA_BOUND_RIGHT);
             cameraCenter.y = std::clamp(player.rect.y + 80, CAMERA_BOUND_BOTTOM, CAMERA_BOUND_TOP);
 
-            DrawAtPosition2(player.rect, cameraCenter, player_rect);
-            DrawAtPosition(greenbox1Rect, cameraCenter, greenbox);
-            DrawAtPosition(greenbox2Rect, cameraCenter, greenbox2);
-            DrawAtPosition(greenbox3Rect, cameraCenter, greenbox3);
-            DrawAtPosition(fgRect, cameraCenter, fg_rect);
+            DrawAtPosition(player.rect, cameraCenter, player_rect);
+            for (DrawableTerrain &drawableTerrain : drawableTerrains)
+            {
+                DrawAtPosition(drawableTerrain.rect, cameraCenter, drawableTerrain.drawRect);
+            }
+            // DrawAtPosition(greenbox1Rect, cameraCenter, greenbox1);
+            // DrawAtPosition(greenbox2Rect, cameraCenter, greenbox2);
+            // DrawAtPosition(greenbox3Rect, cameraCenter, greenbox3);
+            // DrawAtPosition(fgRect, cameraCenter, fg_rect);
 
             cloud_x -= .35;
             if (cloud_x < 0)
@@ -288,7 +294,7 @@ int main(int argc, char **argv)
 
             // Render
             SDL_RenderClear(renderer);
-            SDL_SetRenderDrawColor(renderer, 120, 140, 70, 255);
+            SDL_SetRenderDrawColor(renderer, 90, 90, 115, 255);
 
             SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_left);
             SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_right);
@@ -298,10 +304,10 @@ int main(int argc, char **argv)
             SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_left);
             SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_right);
 
-            SDL_RenderFillRect(renderer, &fg_rect);
-            SDL_RenderFillRect(renderer, &greenbox);
-            SDL_RenderFillRect(renderer, &greenbox2);
-            SDL_RenderFillRect(renderer, &greenbox3);
+            for (DrawableTerrain &drawableTerrain : drawableTerrains)
+            {
+                SDL_RenderFillRect(renderer, &(drawableTerrain.drawRect));
+            }
 
             SDL_RenderCopyEx(renderer, king_texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 

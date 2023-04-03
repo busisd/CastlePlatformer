@@ -18,7 +18,9 @@
 				"-lSDL2",
 				"-L${workspaceFolder}\\libraries\\SDL2-2.24.0\\x86_64-w64-mingw32\\lib",
 				"-lSDL2_image",
-				"-L${workspaceFolder}\\libraries\\SDL2_image-2.6.2\\x86_64-w64-mingw32\\lib"
+				"-L${workspaceFolder}\\libraries\\SDL2_image-2.6.2\\x86_64-w64-mingw32\\lib",
+				"-I${workspaceFolder}\\libraries\\nlohmann\\include",
+				"-L${workspaceFolder}\\libraries\\nlohmann\\include",
 			],
 			"options": {
 				"cwd": "${fileDirname}"

@@ -74,8 +74,8 @@ const int GROUND_HEIGHT = 473;
 const int CAMERA_AREA_W = 800;
 const int CAMERA_AREA_H = 450;
 
-const double STAGE_BOUND_LEFT = -500.0;
-const double STAGE_BOUND_RIGHT = 500.0;
+const double STAGE_BOUND_LEFT = -800.0;
+const double STAGE_BOUND_RIGHT = 800.0;
 const double STAGE_BOUND_BOTTOM = -325.0;
 const double STAGE_BOUND_TOP = 400.0;
 
@@ -83,8 +83,6 @@ const double CAMERA_BOUND_LEFT = STAGE_BOUND_LEFT + CAMERA_AREA_W / 2;
 const double CAMERA_BOUND_RIGHT = STAGE_BOUND_RIGHT - CAMERA_AREA_W / 2;
 const double CAMERA_BOUND_BOTTOM = STAGE_BOUND_BOTTOM + CAMERA_AREA_H / 2;
 const double CAMERA_BOUND_TOP = STAGE_BOUND_TOP - CAMERA_AREA_H / 2;
-
-const double GAME_GROUND_HEIGHT = -100.0;
 
 const int PLAYER_HITBOX_WIDTH = 46;
 
@@ -136,9 +134,9 @@ int main(int argc, char **argv)
     SDL_Texture *clouds_texture = LoadTexture(project_dir_path + "/assets/clouds.png", renderer);
     SDL_Texture *moon_texture = LoadTexture(project_dir_path + "/assets/moon.png", renderer);
 
-    std::ifstream f(project_dir_path + "/assets/stage1.json");
+    std::ifstream f(project_dir_path + "/data/stage1.json");
     nlohmann::json stageData = nlohmann::json::parse(f);
-    std::cout << stageData << std::endl;
+    // std::cout << stageData << std::endl;
 
     Player player;
     util::Point cameraCenter;
@@ -153,10 +151,10 @@ int main(int argc, char **argv)
     std::list<DrawableTerrain> drawableTerrains;
     for (auto terrainPiece : stageData["terrain"])
     {
-        drawableTerrains.push_back({{}, {x : terrainPiece["x"],
-                                         y : terrainPiece["y"],
-                                         w : terrainPiece["w"],
-                                         h : terrainPiece["h"]}});
+        drawableTerrains.push_back({{}, {x : terrainPiece["l"],
+                                         y : terrainPiece["b"],
+                                         w : (double)terrainPiece["r"] - (double)terrainPiece["l"],
+                                         h : (double)terrainPiece["t"] - (double)terrainPiece["b"]}});
     }
 
     double cloud_x = 0.0;

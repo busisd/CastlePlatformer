@@ -56,28 +56,40 @@ util::SizedTexture LoadSizedTexture(std::string path, SDL_Renderer *renderer)
     return sized_texture;
 }
 
-// TODO: Clamp to width and height of area
-// TODO: Provide a size for the repeating texture
-int RenderRepeatedTexture(SDL_Renderer *renderer, util::SizedTexture sized_texture, SDL_Rect dstrect)
+// TODO: memoize results?
+int RenderRepeatedTexture(SDL_Renderer *renderer, util::SizedTexture sized_texture, int src_w, int src_h, SDL_Rect dstrect)
 {
     int status_code = 0;
-    SDL_Rect src_rect;
+    SDL_Rect src_rect = {x : 0, y : 0, w : 0, h : 0};
     SDL_Rect dest_rect;
-    for (int dest_x = dstrect.x; dest_x < dstrect.x + dstrect.w; dest_x += sized_texture.w)
+    for (int dest_x = dstrect.x; dest_x < dstrect.x + dstrect.w; dest_x += src_w)
     {
-        for (int dest_y = dstrect.y; dest_y < dstrect.y + dstrect.h; dest_y += sized_texture.h)
+        for (int dest_y = dstrect.y; dest_y < dstrect.y + dstrect.h; dest_y += src_h)
         {
-            src_rect = {
-                x: 0,
-                y: 0,
-                w: std::min(sized_texture.w, (dstrect.x + dstrect.w)-dest_x),
-                h: std::min(sized_texture.h, (dstrect.y + dstrect.h)-dest_y)
-            };
+            // TODO: move to helper function
+            if (src_w <= (dstrect.x + dstrect.w) - dest_x)
+            {
+                src_rect.w = sized_texture.w;
+            }
+            else
+            {
+                double pct_scale_w = ((double)((dstrect.x + dstrect.w) - dest_x)) / src_w;
+                src_rect.w = std::round(sized_texture.w * pct_scale_w);
+            }
+            if (src_h <= (dstrect.y + dstrect.h) - dest_y)
+            {
+                src_rect.h = sized_texture.h;
+            }
+            else
+            {
+                double pct_scale_h = ((double)((dstrect.y + dstrect.h) - dest_y)) / src_h;
+                src_rect.h = std::round(sized_texture.h * pct_scale_h);
+            }
             dest_rect = {
                 x : dest_x,
                 y : dest_y,
-                w : std::min(sized_texture.w, (dstrect.x + dstrect.w)-dest_x),
-                h : std::min(sized_texture.h, (dstrect.y + dstrect.h)-dest_y)
+                w : std::min(src_w, (dstrect.x + dstrect.w) - dest_x),
+                h : std::min(src_h, (dstrect.y + dstrect.h) - dest_y)
             };
 
             status_code = SDL_RenderCopy(renderer, sized_texture.texture, &src_rect, &dest_rect);
@@ -349,7 +361,7 @@ int main(int argc, char **argv)
                 SDL_RenderFillRect(renderer, &(drawableTerrain.drawRect));
             }
 
-            RenderRepeatedTexture(renderer, king_texture, drawableTerrains.back().drawRect);
+            RenderRepeatedTexture(renderer, king_texture, 43, 36, drawableTerrains.back().drawRect);
 
             SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 

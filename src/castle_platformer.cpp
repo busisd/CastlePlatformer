@@ -265,7 +265,7 @@ int main(int argc, char **argv)
             {
                 if (player.isGrounded)
                 {
-                    player.yAccel = 13.0 + 0.6;
+                    player.yVelocity = 13.0 + 0.6;
                     player.isGrounded = false;
                 }
                 // player.position.y += 1;
@@ -305,18 +305,24 @@ int main(int argc, char **argv)
                 util::prettyLog("x:", player.rect.x, "y:", player.rect.y);
             }
 
-            player.yAccel -= 0.6;
-            player.yAccel = std::max(player.yAccel, player.maxFallSpeed);
-            player.rect.y += player.yAccel;
+            player.yVelocity -= 0.6;
+            player.yVelocity = std::max(player.yVelocity, player.maxFallSpeed);
+            player.rect.y += player.yVelocity;
             player.isGrounded = false;
             for (DrawableTerrain &drawableTerrain : drawableTerrains)
             {
                 if (util::Collides(player.rect, drawableTerrain.rect))
                 {
-                    player.rect.y = drawableTerrain.rect.y + drawableTerrain.rect.h;
-                    player.yAccel = 0;
-                    player.isGrounded = true;
-                    break;
+                    if (player.yVelocity < 0) {
+                        player.rect.y = drawableTerrain.rect.y + drawableTerrain.rect.h;
+                        player.yVelocity = 0;
+                        player.isGrounded = true;
+                        break;
+                    } else {
+                        player.rect.y = drawableTerrain.rect.y - player.rect.h;
+                        player.yVelocity = 0;
+                        break;
+                    }
                 }
             }
 
@@ -361,7 +367,7 @@ int main(int argc, char **argv)
                 SDL_RenderFillRect(renderer, &(drawableTerrain.drawRect));
             }
 
-            RenderRepeatedTexture(renderer, king_texture, 43, 36, drawableTerrains.back().drawRect);
+            RenderRepeatedTexture(renderer, king_texture, king_texture.w*4, king_texture.h*4, drawableTerrains.back().drawRect);
 
             SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 

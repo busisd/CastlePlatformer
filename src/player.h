@@ -11,7 +11,7 @@ public:
   Player() : rect{0.0, -100.0, 46.0, 94.0}, maxFallSpeed(-15) {}
   util::Rect rect;
   bool isGrounded;
-  double yAccel;
+  double yVelocity;
   double maxFallSpeed;
 };
 

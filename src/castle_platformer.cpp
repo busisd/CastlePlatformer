@@ -19,6 +19,8 @@
 //   * Before running the game: For every 50x50 sector in the stage, do a Collision check (e.g. check the entire grid of the stage)
 //   * Once the game starts, use that data to only compare collisions for sectors the player is actually in
 // * Bound camera so that it can't show off-stage stuff at all (instead of just the center being bounded)
+// * Main menu, pause menu
+// * Custom repeated textures
 
 std::list<SDL_Texture *> g_textures;
 
@@ -44,6 +46,33 @@ void DestroyTextures()
         SDL_DestroyTexture(texture);
     }
     g_textures.clear();
+}
+
+util::SizedTexture LoadSizedTexture(std::string path, SDL_Renderer *renderer)
+{
+    util::SizedTexture sized_texture;
+    sized_texture.texture = LoadTexture(path, renderer);
+    SDL_QueryTexture(sized_texture.texture, NULL, NULL, &(sized_texture.w), &(sized_texture.h));
+    return sized_texture;
+}
+
+// TODO: Clamp to width and height of area
+// TODO: Provide a size for the repeating texture
+int RenderRepeatedTexture(SDL_Renderer *renderer, util::SizedTexture sized_texture, SDL_Rect dstrect)
+{
+    int status_code = 0;
+    SDL_Rect cur_rect;
+    for (int cur_x = dstrect.x; cur_x < dstrect.x + dstrect.w; cur_x += sized_texture.w)
+    {
+        for (int cur_y = dstrect.y; cur_y < dstrect.y + dstrect.h; cur_y += sized_texture.h)
+        {
+            cur_rect = {x : cur_x, y: cur_y, w: sized_texture.w, h: sized_texture.h};
+            status_code = SDL_RenderCopy(renderer, sized_texture.texture, NULL, &cur_rect);
+            if (status_code != 0)
+                return status_code;
+        }
+    }
+    return status_code;
 }
 
 /**
@@ -129,10 +158,10 @@ int main(int argc, char **argv)
     SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
-    SDL_Texture *king_texture = LoadTexture(project_dir_path + "/assets/king.png", renderer);
-    SDL_Texture *bg_texture = LoadTexture(project_dir_path + "/assets/castlebg.png", renderer);
-    SDL_Texture *clouds_texture = LoadTexture(project_dir_path + "/assets/clouds.png", renderer);
-    SDL_Texture *moon_texture = LoadTexture(project_dir_path + "/assets/moon.png", renderer);
+    util::SizedTexture king_texture = LoadSizedTexture(project_dir_path + "/assets/king.png", renderer);
+    util::SizedTexture bg_texture = LoadSizedTexture(project_dir_path + "/assets/castlebg.png", renderer);
+    util::SizedTexture clouds_texture = LoadSizedTexture(project_dir_path + "/assets/clouds.png", renderer);
+    util::SizedTexture moon_texture = LoadSizedTexture(project_dir_path + "/assets/moon.png", renderer);
 
     std::ifstream f(project_dir_path + "/data/stage1.json");
     nlohmann::json stageData = nlohmann::json::parse(f);
@@ -294,20 +323,22 @@ int main(int argc, char **argv)
             SDL_RenderClear(renderer);
             SDL_SetRenderDrawColor(renderer, 90, 90, 115, 255);
 
-            SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_left);
-            SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect_right);
+            SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_left);
+            SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_right);
 
-            SDL_RenderCopy(renderer, moon_texture, NULL, NULL);
+            SDL_RenderCopy(renderer, moon_texture.texture, NULL, NULL);
 
-            SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_left);
-            SDL_RenderCopy(renderer, clouds_texture, NULL, &cloud_rect_right);
+            SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_left);
+            SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_right);
 
             for (DrawableTerrain &drawableTerrain : drawableTerrains)
             {
                 SDL_RenderFillRect(renderer, &(drawableTerrain.drawRect));
             }
 
-            SDL_RenderCopyEx(renderer, king_texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
+            RenderRepeatedTexture(renderer, king_texture, drawableTerrains.back().drawRect);
+
+            SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 
             SDL_RenderPresent(renderer);
         }

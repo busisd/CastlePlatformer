@@ -2,6 +2,7 @@
 #define CASTLE_PLATFORMER_UTIL
 
 #include <unordered_set>
+#include <SDL.h>
 
 namespace util
 {
@@ -23,6 +24,13 @@ namespace util
   {
     double x;
     double y;
+  };
+
+  struct SizedTexture
+  {
+    int w;
+    int h;
+    SDL_Texture *texture;
   };
 
   bool Collides(Rect rect1, Rect rect2);

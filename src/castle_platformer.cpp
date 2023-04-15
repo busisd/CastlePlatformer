@@ -187,6 +187,7 @@ int main(int argc, char **argv)
     util::SizedTexture bg_texture = LoadSizedTexture(project_dir_path + "/assets/castlebg.png", renderer);
     util::SizedTexture clouds_texture = LoadSizedTexture(project_dir_path + "/assets/clouds.png", renderer);
     util::SizedTexture moon_texture = LoadSizedTexture(project_dir_path + "/assets/moon.png", renderer);
+    util::SizedTexture brick_texture = LoadSizedTexture(project_dir_path + "/assets/bricktexture.png", renderer);
 
     std::ifstream f(project_dir_path + "/data/stage1.json");
     nlohmann::json stageData = nlohmann::json::parse(f);
@@ -364,10 +365,10 @@ int main(int argc, char **argv)
 
             for (DrawableTerrain &drawableTerrain : drawableTerrains)
             {
-                SDL_RenderFillRect(renderer, &(drawableTerrain.drawRect));
+                // SDL_RenderFillRect(renderer, &(drawableTerrain.drawRect));
+                RenderRepeatedTexture(renderer, brick_texture, brick_texture.w*4, brick_texture.h*4, drawableTerrain.drawRect);
             }
-
-            RenderRepeatedTexture(renderer, king_texture, king_texture.w*4, king_texture.h*4, drawableTerrains.back().drawRect);
+            // RenderRepeatedTexture(renderer, brick_texture, brick_texture.w*4, brick_texture.h*4, drawableTerrains.back().drawRect);
 
             SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 

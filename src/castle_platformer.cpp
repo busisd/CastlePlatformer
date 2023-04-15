@@ -61,21 +61,26 @@ util::SizedTexture LoadSizedTexture(std::string path, SDL_Renderer *renderer)
 int RenderRepeatedTexture(SDL_Renderer *renderer, util::SizedTexture sized_texture, SDL_Rect dstrect)
 {
     int status_code = 0;
+    SDL_Rect src_rect;
     SDL_Rect dest_rect;
     for (int dest_x = dstrect.x; dest_x < dstrect.x + dstrect.w; dest_x += sized_texture.w)
     {
         for (int dest_y = dstrect.y; dest_y < dstrect.y + dstrect.h; dest_y += sized_texture.h)
         {
+            src_rect = {
+                x: 0,
+                y: 0,
+                w: std::min(sized_texture.w, (dstrect.x + dstrect.w)-dest_x),
+                h: std::min(sized_texture.h, (dstrect.y + dstrect.h)-dest_y)
+            };
             dest_rect = {
                 x : dest_x,
                 y : dest_y,
                 w : std::min(sized_texture.w, (dstrect.x + dstrect.w)-dest_x),
                 h : std::min(sized_texture.h, (dstrect.y + dstrect.h)-dest_y)
-                // w : sized_texture.w,
-                // h : sized_texture.h
             };
 
-            status_code = SDL_RenderCopy(renderer, sized_texture.texture, NULL, &dest_rect);
+            status_code = SDL_RenderCopy(renderer, sized_texture.texture, &src_rect, &dest_rect);
             if (status_code != 0)
                 return status_code;
         }

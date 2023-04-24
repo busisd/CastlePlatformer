@@ -4,23 +4,23 @@
 		{
 			"type": "cppbuild",
 			"label": "C/C++: g++.exe build castle_platformer",
-			"command": "C:/msys64/mingw64/bin/g++.exe",
+			"command": "C:/msys64/ucrt64/bin/g++.exe",
 			"args": [
 				"-fdiagnostics-color=always",
 				"-g",
 				"${workspaceFolder}\\src\\castle_platformer.cpp",
 				"-o",
 				"${workspaceFolder}\\build\\castle_platformer.exe",
-				"-I${workspaceFolder}\\libraries\\SDL2-2.24.0\\x86_64-w64-mingw32\\include\\SDL2",
-				"-I${workspaceFolder}\\libraries\\SDL2_image-2.6.2\\x86_64-w64-mingw32\\include\\SDL2",
+				"-I${workspaceFolder}\\libraries\\SDL2-2.26.5\\x86_64-w64-mingw32\\include\\SDL2",
+				"-I${workspaceFolder}\\libraries\\SDL2_image-2.6.3\\x86_64-w64-mingw32\\include\\SDL2",
 				"-lmingw32",
 				"-lSDL2main",
 				"-lSDL2",
-				"-L${workspaceFolder}\\libraries\\SDL2-2.24.0\\x86_64-w64-mingw32\\lib",
+				"-L${workspaceFolder}\\libraries\\SDL2-2.26.5\\x86_64-w64-mingw32\\lib",
 				"-lSDL2_image",
-				"-L${workspaceFolder}\\libraries\\SDL2_image-2.6.2\\x86_64-w64-mingw32\\lib",
-				"-I${workspaceFolder}\\libraries\\nlohmann\\include",
-				"-L${workspaceFolder}\\libraries\\nlohmann\\include",
+				"-L${workspaceFolder}\\libraries\\SDL2_image-2.6.3\\x86_64-w64-mingw32\\lib",
+				"-I${workspaceFolder}\\libraries\\nlohmann_json\\include",
+				"-L${workspaceFolder}\\libraries\\nlohmann_json\\include",
 			],
 			"options": {
 				"cwd": "${fileDirname}"
@@ -29,7 +29,7 @@
 				"$gcc"
 			],
 			"group": "build",
-			"detail": "compiler: C:/msys64/mingw64/bin/g++.exe"
+			"detail": "compiler: C:/Program Files/mingw-w64/x86_64-8.1.0-posix-seh-rt_v6-rev0/mingw64/bin/g++.exe"
 		}
 	]
 }

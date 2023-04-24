@@ -4,8 +4,9 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/libraries/SDL2-2.24.0/x86_64-w64-mingw32/include/SDL2",
-                "${workspaceFolder}/libraries/SDL2_image-2.6.2/x86_64-w64-mingw32/include/SDL2"
+                "${workspaceFolder}/libraries/nlohmann_json/include/nlohmann",
+                "${workspaceFolder}/libraries/SDL2-2.26.5/x86_64-w64-mingw32/include/SDL2",
+                "${workspaceFolder}/libraries/SDL2_image-2.6.3/x86_64-w64-mingw32/include/SDL2"
             ],
             "defines": [
                 "_DEBUG",
@@ -13,7 +14,7 @@
                 "_UNICODE"
             ],
             "windowsSdkVersion": "10.0.19041.0",
-            "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
+            "compilerPath": "C:/msys64/ucrt64/bin/g++.exe",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "windows-gcc-x64"

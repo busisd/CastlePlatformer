@@ -10,7 +10,10 @@
 #include <cmath>
 #include "util.h"
 #include "player.h"
-#include <json.hpp>
+#include <nlohmann/json.hpp>
+// TODO: Investigate pacman package management:
+// * https://packages.msys2.org/package/mingw-w64-ucrt-x86_64-nlohmann-json?repo=ucrt64
+// * https://stackoverflow.com/questions/45618405/mingw-64-install-package
 
 // TODO:
 // * Pull in stage data from XML file
@@ -21,6 +24,7 @@
 // * Bound camera so that it can't show off-stage stuff at all (instead of just the center being bounded)
 // * Main menu, pause menu
 // * Custom repeated textures
+// * Investigate SDL_GetKeyboardState();
 
 std::list<SDL_Texture *> g_textures;
 

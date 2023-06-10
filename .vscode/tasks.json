@@ -1,35 +1,32 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"type": "cppbuild",
-			"label": "C/C++: g++.exe build castle_platformer",
-			"command": "C:/msys64/ucrt64/bin/g++.exe",
-			"args": [
-				"-fdiagnostics-color=always",
-				"-g",
-				"${workspaceFolder}\\src\\castle_platformer.cpp",
-				"-o",
-				"${workspaceFolder}\\build\\castle_platformer.exe",
-				"-I${workspaceFolder}\\libraries\\SDL2-2.26.5\\x86_64-w64-mingw32\\include\\SDL2",
-				"-I${workspaceFolder}\\libraries\\SDL2_image-2.6.3\\x86_64-w64-mingw32\\include\\SDL2",
-				"-lmingw32",
-				"-lSDL2main",
-				"-lSDL2",
-				"-L${workspaceFolder}\\libraries\\SDL2-2.26.5\\x86_64-w64-mingw32\\lib",
-				"-lSDL2_image",
-				"-L${workspaceFolder}\\libraries\\SDL2_image-2.6.3\\x86_64-w64-mingw32\\lib",
-				"-I${workspaceFolder}\\libraries\\nlohmann_json\\include",
-				"-L${workspaceFolder}\\libraries\\nlohmann_json\\include",
-			],
-			"options": {
-				"cwd": "${fileDirname}"
-			},
-			"problemMatcher": [
-				"$gcc"
-			],
-			"group": "build",
-			"detail": "compiler: C:/Program Files/mingw-w64/x86_64-8.1.0-posix-seh-rt_v6-rev0/mingw64/bin/g++.exe"
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "cppbuild",
+      "label": "C/C++: g++.exe build castle_platformer",
+      "command": "C:/msys64/ucrt64/bin/g++.exe",
+      "args": [
+        "-fdiagnostics-color=always",
+        "-g",
+        "${workspaceFolder}\\src\\castle_platformer.cpp",
+        "-o",
+        "${workspaceFolder}\\build\\castle_platformer.exe",
+        "-fstack-protector", // https://stackoverflow.com/questions/4492799/undefined-reference-to-stack-chk-fail
+        "-IC:\\msys64\\ucrt64\\include\\SDL2",
+        "-IC:\\msys64\\ucrt64\\include\\nlohmann",
+        "-lmingw32",
+        "-lSDL2main",
+        "-lSDL2",
+        "-lSDL2_image"
+      ],
+      "options": {
+        "cwd": "${fileDirname}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": "build",
+      "detail": "compiler: C:/Program Files/mingw-w64/x86_64-8.1.0-posix-seh-rt_v6-rev0/mingw64/bin/g++.exe"
+    }
+  ]
 }

@@ -62,7 +62,14 @@
     "ranges": "cpp",
     "span": "cpp",
     "valarray": "cpp",
-    "fstream": "cpp"
+    "fstream": "cpp",
+    "format": "cpp",
+    "xhash": "cpp",
+    "xloctime": "cpp",
+    "xmemory": "cpp",
+    "xstring": "cpp",
+    "xtr1common": "cpp",
+    "xutility": "cpp"
   },
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"

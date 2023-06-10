@@ -3,10 +3,7 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**",
-                "${workspaceFolder}/libraries/nlohmann_json/include/nlohmann",
-                "${workspaceFolder}/libraries/SDL2-2.26.5/x86_64-w64-mingw32/include/SDL2",
-                "${workspaceFolder}/libraries/SDL2_image-2.6.3/x86_64-w64-mingw32/include/SDL2"
+                "C:\\msys64\\ucrt64\\include\\**"
             ],
             "defines": [
                 "_DEBUG",
@@ -17,7 +14,10 @@
             "compilerPath": "C:/msys64/ucrt64/bin/g++.exe",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "windows-gcc-x64"
+            "intelliSenseMode": "windows-gcc-x64",
+            "compilerArgs": [
+                "-fstack-protector"
+            ]
         }
     ],
     "version": 4

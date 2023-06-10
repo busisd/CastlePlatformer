@@ -23,7 +23,7 @@
 //   * Once the game starts, use that data to only compare collisions for sectors the player is actually in
 // * Bound camera so that it can't show off-stage stuff at all (instead of just the center being bounded)
 // * Main menu, pause menu
-// * Custom repeated textures
+// * Jumping/landing animations
 // * Investigate SDL_GetKeyboardState();
 
 std::list<SDL_Texture *> g_textures;
@@ -339,10 +339,6 @@ int main(int argc, char **argv)
             {
                 DrawAtPosition(drawableTerrain.rect, cameraCenter, drawableTerrain.drawRect);
             }
-            // DrawAtPosition(greenbox1Rect, cameraCenter, greenbox1);
-            // DrawAtPosition(greenbox2Rect, cameraCenter, greenbox2);
-            // DrawAtPosition(greenbox3Rect, cameraCenter, greenbox3);
-            // DrawAtPosition(fgRect, cameraCenter, fg_rect);
 
             cloud_x -= .35;
             if (cloud_x < 0)

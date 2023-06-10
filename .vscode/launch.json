@@ -1,7 +1,7 @@
 {
   "configurations": [
     {
-      "name": "C/C++: g++.exe build and debug active file",
+      "name": "C/C++: g++.exe build and debug castle_platformer",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}\\build\\castle_platformer.exe",

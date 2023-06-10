@@ -16,15 +16,13 @@
 // * https://stackoverflow.com/questions/45618405/mingw-64-install-package
 
 // TODO:
-// * Pull in stage data from XML file
-// * Draw stage rects with texture
 // * Use area grouping to only calculate collision with nearby rects
 //   * Before running the game: For every 50x50 sector in the stage, do a Collision check (e.g. check the entire grid of the stage)
 //   * Once the game starts, use that data to only compare collisions for sectors the player is actually in
 // * Bound camera so that it can't show off-stage stuff at all (instead of just the center being bounded)
 // * Main menu, pause menu
 // * Jumping/landing animations
-// * Investigate SDL_GetKeyboardState();
+// * Hold UP for longer jumps
 
 std::list<SDL_Texture *> g_textures;
 
@@ -195,7 +193,6 @@ int main(int argc, char **argv)
 
     std::ifstream f(project_dir_path + "/data/stage1.json");
     nlohmann::json stageData = nlohmann::json::parse(f);
-    // std::cout << stageData << std::endl;
 
     Player player;
     util::Point cameraCenter;
@@ -223,6 +220,8 @@ int main(int argc, char **argv)
     bool isRunning = true;
     SDL_Event event;
 
+    const Uint8 *keyboard_state = SDL_GetKeyboardState(NULL);
+
     std::unordered_set<SDL_KeyCode> keys_pressed;
 
     auto frame_length = std::chrono::microseconds{(int)(1.0 / 60.0 * 1000.0 * 1000.0)};
@@ -239,25 +238,12 @@ int main(int argc, char **argv)
             case SDL_QUIT:
                 isRunning = false;
                 break;
-
-            case SDL_KEYDOWN:
-                if (event.key.keysym.sym == SDLK_ESCAPE)
-                {
-                    isRunning = false;
-                }
-                else
-                {
-                    bool inserted = keys_pressed.insert((SDL_KeyCode)event.key.keysym.sym).second;
-                    if (inserted)
-                        util::PrintSet(keys_pressed);
-                }
-                break;
-
-            case SDL_KEYUP:
-                keys_pressed.erase((SDL_KeyCode)event.key.keysym.sym);
-                util::PrintSet(keys_pressed);
-                break;
             }
+        }
+
+        if (keyboard_state[SDL_SCANCODE_ESCAPE])
+        {
+            isRunning = false;
         }
 
         while (std::chrono::steady_clock::now() > current_time + frame_length)
@@ -266,20 +252,21 @@ int main(int argc, char **argv)
 
             current_time += frame_length;
 
-            if (util::Contains(keys_pressed, SDLK_UP))
+            // if (util::Contains(keys_pressed, SDLK_UP))
+            if (keyboard_state[SDL_SCANCODE_UP])
             {
                 if (player.isGrounded)
                 {
                     player.yVelocity = 13.0 + 0.6;
                     player.isGrounded = false;
                 }
-                // player.position.y += 1;
             }
-            if (util::Contains(keys_pressed, SDLK_DOWN))
+            // if (util::Contains(keys_pressed, SDLK_DOWN))
+            if (keyboard_state[SDL_SCANCODE_DOWN])
             {
-                // player.position.y -= 1;
             }
-            if (util::Contains(keys_pressed, SDLK_RIGHT))
+            // if (util::Contains(keys_pressed, SDLK_RIGHT))
+            if (keyboard_state[SDL_SCANCODE_RIGHT])
             {
                 player.rect.x += 3.5;
                 for (DrawableTerrain &drawableTerrain : drawableTerrains)
@@ -292,7 +279,8 @@ int main(int argc, char **argv)
                 }
                 facing_left = false;
             }
-            if (util::Contains(keys_pressed, SDLK_LEFT))
+            // if (util::Contains(keys_pressed, SDLK_LEFT))
+            if (keyboard_state[SDL_SCANCODE_LEFT])
             {
                 player.rect.x -= 3.5;
                 for (DrawableTerrain &drawableTerrain : drawableTerrains)
@@ -305,7 +293,8 @@ int main(int argc, char **argv)
                 }
                 facing_left = true;
             }
-            if (util::Contains(keys_pressed, SDLK_p))
+            // if (util::Contains(keys_pressed, SDLK_p))
+            if (keyboard_state[SDL_SCANCODE_P])
             {
                 util::prettyLog("x:", player.rect.x, "y:", player.rect.y);
             }
@@ -318,12 +307,15 @@ int main(int argc, char **argv)
             {
                 if (util::Collides(player.rect, drawableTerrain.rect))
                 {
-                    if (player.yVelocity < 0) {
+                    if (player.yVelocity < 0)
+                    {
                         player.rect.y = drawableTerrain.rect.y + drawableTerrain.rect.h;
                         player.yVelocity = 0;
                         player.isGrounded = true;
                         break;
-                    } else {
+                    }
+                    else
+                    {
                         player.rect.y = drawableTerrain.rect.y - player.rect.h;
                         player.yVelocity = 0;
                         break;
@@ -365,10 +357,8 @@ int main(int argc, char **argv)
 
             for (DrawableTerrain &drawableTerrain : drawableTerrains)
             {
-                // SDL_RenderFillRect(renderer, &(drawableTerrain.drawRect));
-                RenderRepeatedTexture(renderer, brick_texture, brick_texture.w*4, brick_texture.h*4, drawableTerrain.drawRect);
+                RenderRepeatedTexture(renderer, brick_texture, brick_texture.w * 4, brick_texture.h * 4, drawableTerrain.drawRect);
             }
-            // RenderRepeatedTexture(renderer, brick_texture, brick_texture.w*4, brick_texture.h*4, drawableTerrains.back().drawRect);
 
             SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 

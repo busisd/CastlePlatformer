@@ -23,6 +23,12 @@
 // * Main menu, pause menu
 // * Jumping/landing animations
 // * Hold UP for longer jumps
+// * Draw polygons/slopes
+// * Walk up snopes with snap-up
+// * Pause screen (translucent with "Paused" displayed)
+// * Menu screen
+// * Option to set controls
+// * Save user options
 
 std::list<SDL_Texture *> g_textures;
 
@@ -184,12 +190,14 @@ int main(int argc, char **argv)
 
     SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
     util::SizedTexture king_texture = LoadSizedTexture(project_dir_path + "/assets/king.png", renderer);
     util::SizedTexture bg_texture = LoadSizedTexture(project_dir_path + "/assets/castlebg.png", renderer);
     util::SizedTexture clouds_texture = LoadSizedTexture(project_dir_path + "/assets/clouds.png", renderer);
     util::SizedTexture moon_texture = LoadSizedTexture(project_dir_path + "/assets/moon.png", renderer);
     util::SizedTexture brick_texture = LoadSizedTexture(project_dir_path + "/assets/bricktexture.png", renderer);
+    util::SizedTexture paused_texture = LoadSizedTexture(project_dir_path + "/assets/paused.png", renderer);
 
     std::ifstream f(project_dir_path + "/data/stage1.json");
     nlohmann::json stageData = nlohmann::json::parse(f);
@@ -203,6 +211,15 @@ int main(int argc, char **argv)
     double player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
+
+    bool paused = false;
+    SDL_Rect paused_rect = {
+        x : SCREEN_W / 2 - (paused_texture.w * 4) / 2,
+        y : SCREEN_H / 2 - (paused_texture.h * 4) / 2,
+        w : (paused_texture.w * 4),
+        h : (paused_texture.h * 4)
+    };
+    SDL_Rect paused_shader_rect = {0, 0, SCREEN_W, SCREEN_H};
 
     std::list<DrawableTerrain> drawableTerrains;
     for (auto terrainPiece : stageData["terrain"])
@@ -220,7 +237,10 @@ int main(int argc, char **argv)
     bool isRunning = true;
     SDL_Event event;
 
-    const Uint8 *keyboard_state = SDL_GetKeyboardState(NULL);
+    int keyboard_size;
+    const Uint8 *keyboard_state = SDL_GetKeyboardState(&keyboard_size);
+    Uint8 newly_pressed_keys[keyboard_size];
+    std::fill(newly_pressed_keys, newly_pressed_keys + keyboard_size, 0);
 
     std::unordered_set<SDL_KeyCode> keys_pressed;
 
@@ -238,89 +258,106 @@ int main(int argc, char **argv)
             case SDL_QUIT:
                 isRunning = false;
                 break;
+            case SDL_KEYDOWN:
+                if (event.key.repeat == 0)
+                {
+                    newly_pressed_keys[event.key.keysym.scancode] = 1;
+                }
             }
+        }
+        if (!isRunning)
+        {
+            break;
         }
 
         if (keyboard_state[SDL_SCANCODE_ESCAPE])
         {
-            isRunning = false;
+            SDL_Event quit_event = {type : SDL_QUIT};
+            SDL_PushEvent(&quit_event);
         }
 
         while (std::chrono::steady_clock::now() > current_time + frame_length)
         {
             frame_number++;
-
             current_time += frame_length;
 
-            // if (util::Contains(keys_pressed, SDLK_UP))
-            if (keyboard_state[SDL_SCANCODE_UP])
+            if (newly_pressed_keys[SDL_SCANCODE_P])
             {
-                if (player.isGrounded)
-                {
-                    player.yVelocity = 13.0 + 0.6;
-                    player.isGrounded = false;
-                }
+                paused = !paused;
             }
-            // if (util::Contains(keys_pressed, SDLK_DOWN))
-            if (keyboard_state[SDL_SCANCODE_DOWN])
+            if (!paused)
             {
-            }
-            // if (util::Contains(keys_pressed, SDLK_RIGHT))
-            if (keyboard_state[SDL_SCANCODE_RIGHT])
-            {
-                player.rect.x += 3.5;
-                for (DrawableTerrain &drawableTerrain : drawableTerrains)
+                if (keyboard_state[SDL_SCANCODE_UP])
                 {
-                    if (util::Collides(player.rect, drawableTerrain.rect))
+                    if (player.isGrounded)
                     {
-                        player.rect.x = drawableTerrain.rect.x - player.rect.w;
-                        break;
+                        player.yVelocity = 13.0 + 0.6;
+                        player.isGrounded = false;
                     }
                 }
-                facing_left = false;
-            }
-            // if (util::Contains(keys_pressed, SDLK_LEFT))
-            if (keyboard_state[SDL_SCANCODE_LEFT])
-            {
-                player.rect.x -= 3.5;
-                for (DrawableTerrain &drawableTerrain : drawableTerrains)
+                if (keyboard_state[SDL_SCANCODE_DOWN])
                 {
-                    if (util::Collides(player.rect, drawableTerrain.rect))
-                    {
-                        player.rect.x = drawableTerrain.rect.x + drawableTerrain.rect.w;
-                        break;
-                    }
                 }
-                facing_left = true;
-            }
-            // if (util::Contains(keys_pressed, SDLK_p))
-            if (keyboard_state[SDL_SCANCODE_P])
-            {
-                util::prettyLog("x:", player.rect.x, "y:", player.rect.y);
-            }
+                if (keyboard_state[SDL_SCANCODE_RIGHT])
+                {
+                    player.rect.x += 3.5;
+                    for (DrawableTerrain &drawableTerrain : drawableTerrains)
+                    {
+                        if (util::Collides(player.rect, drawableTerrain.rect))
+                        {
+                            player.rect.x = drawableTerrain.rect.x - player.rect.w;
+                            break;
+                        }
+                    }
+                    facing_left = false;
+                }
+                if (keyboard_state[SDL_SCANCODE_LEFT])
+                {
+                    player.rect.x -= 3.5;
+                    for (DrawableTerrain &drawableTerrain : drawableTerrains)
+                    {
+                        if (util::Collides(player.rect, drawableTerrain.rect))
+                        {
+                            player.rect.x = drawableTerrain.rect.x + drawableTerrain.rect.w;
+                            break;
+                        }
+                    }
+                    facing_left = true;
+                }
+                if (keyboard_state[SDL_SCANCODE_I])
+                {
+                    util::prettyLog("x:", player.rect.x, "y:", player.rect.y);
+                }
 
-            player.yVelocity -= 0.6;
-            player.yVelocity = std::max(player.yVelocity, player.maxFallSpeed);
-            player.rect.y += player.yVelocity;
-            player.isGrounded = false;
-            for (DrawableTerrain &drawableTerrain : drawableTerrains)
-            {
-                if (util::Collides(player.rect, drawableTerrain.rect))
+                player.yVelocity -= 0.6;
+                player.yVelocity = std::max(player.yVelocity, player.maxFallSpeed);
+                player.rect.y += player.yVelocity;
+                player.isGrounded = false;
+                for (DrawableTerrain &drawableTerrain : drawableTerrains)
                 {
-                    if (player.yVelocity < 0)
+                    if (util::Collides(player.rect, drawableTerrain.rect))
                     {
-                        player.rect.y = drawableTerrain.rect.y + drawableTerrain.rect.h;
-                        player.yVelocity = 0;
-                        player.isGrounded = true;
-                        break;
-                    }
-                    else
-                    {
-                        player.rect.y = drawableTerrain.rect.y - player.rect.h;
-                        player.yVelocity = 0;
-                        break;
+                        if (player.yVelocity < 0)
+                        {
+                            player.rect.y = drawableTerrain.rect.y + drawableTerrain.rect.h;
+                            player.yVelocity = 0;
+                            player.isGrounded = true;
+                            break;
+                        }
+                        else
+                        {
+                            player.rect.y = drawableTerrain.rect.y - player.rect.h;
+                            player.yVelocity = 0;
+                            break;
+                        }
                     }
                 }
+
+                cloud_x -= .35;
+                if (cloud_x < 0)
+                    cloud_x += SCREEN_W;
+                cloud_rect_left.x = cloud_x - SCREEN_W;
+                cloud_rect_right.x = cloud_x;
             }
 
             cameraCenter.x = std::clamp(player.rect.x + (player.rect.w / 2.0), CAMERA_BOUND_LEFT, CAMERA_BOUND_RIGHT);
@@ -331,12 +368,6 @@ int main(int argc, char **argv)
             {
                 DrawAtPosition(drawableTerrain.rect, cameraCenter, drawableTerrain.drawRect);
             }
-
-            cloud_x -= .35;
-            if (cloud_x < 0)
-                cloud_x += SCREEN_W;
-            cloud_rect_left.x = cloud_x - SCREEN_W;
-            cloud_rect_right.x = cloud_x;
 
             bg_rect_right.x = (int)(-0.22 * cameraCenter.x) % SCREEN_W + player_offset_x;
             if (bg_rect_right.x < 0)
@@ -362,7 +393,16 @@ int main(int argc, char **argv)
 
             SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 
+            if (paused)
+            {
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 120);
+                SDL_RenderFillRect(renderer, &paused_shader_rect);
+                SDL_RenderCopy(renderer, paused_texture.texture, NULL, &paused_rect);
+            }
+
             SDL_RenderPresent(renderer);
+
+            std::fill(newly_pressed_keys, newly_pressed_keys + keyboard_size, 0);
         }
     }
 

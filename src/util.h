@@ -37,6 +37,8 @@ namespace util
 
   template <typename T, typename... Args>
   void prettyLog(T t, Args... args);
+
+  int PositiveModulo(int i, int n);
 }
 
 #include "util.tcc"

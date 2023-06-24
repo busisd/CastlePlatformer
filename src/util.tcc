@@ -40,4 +40,9 @@ namespace util
         std::cout << t << " ";
         prettyLog(args...);
     }
+
+    int PositiveModulo(int i, int n)
+    {
+        return (i % n + n) % n;
+    }
 }

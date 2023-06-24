@@ -29,6 +29,8 @@
 // * Menu screen
 // * Option to set controls
 // * Save user options
+// * Reorganize game into its own class or function
+// * Change menu boolean to enum of views (menu, settings, game)
 
 std::list<SDL_Texture *> g_textures;
 
@@ -192,6 +194,12 @@ int main(int argc, char **argv)
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
+    util::SizedTexture text_start = LoadSizedTexture(project_dir_path + "/assets/text_start.png", renderer);
+    util::SizedTexture text_settings = LoadSizedTexture(project_dir_path + "/assets/text_settings.png", renderer);
+    util::SizedTexture text_exit = LoadSizedTexture(project_dir_path + "/assets/text_exit.png", renderer);
+    util::SizedTexture button_selected = LoadSizedTexture(project_dir_path + "/assets/button_selected.png", renderer);
+    util::SizedTexture button_unselected = LoadSizedTexture(project_dir_path + "/assets/button_unselected.png", renderer);
+
     util::SizedTexture king_texture = LoadSizedTexture(project_dir_path + "/assets/king.png", renderer);
     util::SizedTexture bg_texture = LoadSizedTexture(project_dir_path + "/assets/castlebg.png", renderer);
     util::SizedTexture clouds_texture = LoadSizedTexture(project_dir_path + "/assets/clouds.png", renderer);
@@ -212,6 +220,12 @@ int main(int argc, char **argv)
     SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
+    bool menu = true;
+    int menu_hovered_index = 0;
+    const std::vector<util::SizedTexture> menu_buttons = {text_start, text_settings, text_exit};
+    const int MENU_START_INDEX = 0;
+    const int MENU_EXIT_INDEX = 2;
+
     bool paused = false;
     SDL_Rect paused_rect = {
         x : SCREEN_W / 2 - (paused_texture.w * 4) / 2,
@@ -219,7 +233,7 @@ int main(int argc, char **argv)
         w : (paused_texture.w * 4),
         h : (paused_texture.h * 4)
     };
-    SDL_Rect paused_shader_rect = {0, 0, SCREEN_W, SCREEN_H};
+    SDL_Rect full_screen_rect = {0, 0, SCREEN_W, SCREEN_H};
 
     std::list<DrawableTerrain> drawableTerrains;
     for (auto terrainPiece : stageData["terrain"])
@@ -270,138 +284,194 @@ int main(int argc, char **argv)
             break;
         }
 
-        if (keyboard_state[SDL_SCANCODE_ESCAPE])
-        {
-            SDL_Event quit_event = {type : SDL_QUIT};
-            SDL_PushEvent(&quit_event);
-        }
-
         while (std::chrono::steady_clock::now() > current_time + frame_length)
         {
             frame_number++;
             current_time += frame_length;
 
-            if (newly_pressed_keys[SDL_SCANCODE_P])
+            if (menu)
             {
-                paused = !paused;
-            }
-            if (!paused)
-            {
-                if (keyboard_state[SDL_SCANCODE_UP])
+                SDL_RenderClear(renderer);
+                SDL_RenderCopy(renderer, bg_texture.texture, NULL, &full_screen_rect);
+
+                if (newly_pressed_keys[SDL_SCANCODE_ESCAPE])
                 {
-                    if (player.isGrounded)
-                    {
-                        player.yVelocity = 13.0 + 0.6;
-                        player.isGrounded = false;
-                    }
-                }
-                if (keyboard_state[SDL_SCANCODE_DOWN])
-                {
-                }
-                if (keyboard_state[SDL_SCANCODE_RIGHT])
-                {
-                    player.rect.x += 3.5;
-                    for (DrawableTerrain &drawableTerrain : drawableTerrains)
-                    {
-                        if (util::Collides(player.rect, drawableTerrain.rect))
-                        {
-                            player.rect.x = drawableTerrain.rect.x - player.rect.w;
-                            break;
-                        }
-                    }
-                    facing_left = false;
-                }
-                if (keyboard_state[SDL_SCANCODE_LEFT])
-                {
-                    player.rect.x -= 3.5;
-                    for (DrawableTerrain &drawableTerrain : drawableTerrains)
-                    {
-                        if (util::Collides(player.rect, drawableTerrain.rect))
-                        {
-                            player.rect.x = drawableTerrain.rect.x + drawableTerrain.rect.w;
-                            break;
-                        }
-                    }
-                    facing_left = true;
-                }
-                if (keyboard_state[SDL_SCANCODE_I])
-                {
-                    util::prettyLog("x:", player.rect.x, "y:", player.rect.y);
+                    SDL_Event quit_event = {type : SDL_QUIT};
+                    SDL_PushEvent(&quit_event);
                 }
 
-                player.yVelocity -= 0.6;
-                player.yVelocity = std::max(player.yVelocity, player.maxFallSpeed);
-                player.rect.y += player.yVelocity;
-                player.isGrounded = false;
+                if (newly_pressed_keys[SDL_SCANCODE_DOWN])
+                {
+                    menu_hovered_index++;
+                    menu_hovered_index = util::PositiveModulo(menu_hovered_index, menu_buttons.size());
+                }
+                if (newly_pressed_keys[SDL_SCANCODE_UP])
+                {
+                    menu_hovered_index--;
+                    menu_hovered_index = util::PositiveModulo(menu_hovered_index, menu_buttons.size());
+                }
+
+                if (newly_pressed_keys[SDL_SCANCODE_Z] || newly_pressed_keys[SDL_SCANCODE_SPACE] || newly_pressed_keys[SDL_SCANCODE_KP_ENTER])
+                {
+                    if (menu_hovered_index == MENU_START_INDEX)
+                    {
+                        menu = false;
+                    }
+                    else if (menu_hovered_index == MENU_EXIT_INDEX)
+                    {
+                        SDL_Event quit_event = {type : SDL_QUIT};
+                        SDL_PushEvent(&quit_event);
+                    }
+                }
+
+                for (int current_button_index = 0; current_button_index < menu_buttons.size(); current_button_index++)
+                {
+                    util::SizedTexture current_button = menu_buttons.at(current_button_index);
+                    SDL_Rect menu_button_rect = {
+                        x : SCREEN_W / 2 - (current_button.w * 4) / 2,
+                        y : SCREEN_H / 2 - (current_button.h * 4) / 2 + current_button_index + (int)(current_button.h * 4 * 1.5 * current_button_index),
+                        w : (current_button.w * 4),
+                        h : (current_button.h * 4)
+                    };
+
+                    if (current_button_index == menu_hovered_index)
+                    {
+                        SDL_RenderCopy(renderer, button_selected.texture, NULL, &menu_button_rect);
+                    }
+                    else
+                    {
+                        SDL_RenderCopy(renderer, button_unselected.texture, NULL, &menu_button_rect);
+                    }
+                    SDL_RenderCopy(renderer, current_button.texture, NULL, &menu_button_rect);
+                }
+            }
+            else
+            {
+                if (newly_pressed_keys[SDL_SCANCODE_ESCAPE])
+                {
+                    menu = true;
+                }
+                if (newly_pressed_keys[SDL_SCANCODE_P])
+                {
+                    paused = !paused;
+                }
+                if (!paused)
+                {
+                    if (keyboard_state[SDL_SCANCODE_UP])
+                    {
+                        if (player.isGrounded)
+                        {
+                            player.yVelocity = 13.0 + 0.6;
+                            player.isGrounded = false;
+                        }
+                    }
+                    if (keyboard_state[SDL_SCANCODE_DOWN])
+                    {
+                    }
+                    if (keyboard_state[SDL_SCANCODE_RIGHT])
+                    {
+                        player.rect.x += 3.5;
+                        for (DrawableTerrain &drawableTerrain : drawableTerrains)
+                        {
+                            if (util::Collides(player.rect, drawableTerrain.rect))
+                            {
+                                player.rect.x = drawableTerrain.rect.x - player.rect.w;
+                                break;
+                            }
+                        }
+                        facing_left = false;
+                    }
+                    if (keyboard_state[SDL_SCANCODE_LEFT])
+                    {
+                        player.rect.x -= 3.5;
+                        for (DrawableTerrain &drawableTerrain : drawableTerrains)
+                        {
+                            if (util::Collides(player.rect, drawableTerrain.rect))
+                            {
+                                player.rect.x = drawableTerrain.rect.x + drawableTerrain.rect.w;
+                                break;
+                            }
+                        }
+                        facing_left = true;
+                    }
+                    if (keyboard_state[SDL_SCANCODE_I])
+                    {
+                        util::prettyLog("x:", player.rect.x, "y:", player.rect.y);
+                    }
+
+                    player.yVelocity -= 0.6;
+                    player.yVelocity = std::max(player.yVelocity, player.maxFallSpeed);
+                    player.rect.y += player.yVelocity;
+                    player.isGrounded = false;
+                    for (DrawableTerrain &drawableTerrain : drawableTerrains)
+                    {
+                        if (util::Collides(player.rect, drawableTerrain.rect))
+                        {
+                            if (player.yVelocity < 0)
+                            {
+                                player.rect.y = drawableTerrain.rect.y + drawableTerrain.rect.h;
+                                player.yVelocity = 0;
+                                player.isGrounded = true;
+                                break;
+                            }
+                            else
+                            {
+                                player.rect.y = drawableTerrain.rect.y - player.rect.h;
+                                player.yVelocity = 0;
+                                break;
+                            }
+                        }
+                    }
+
+                    cloud_x -= .35;
+                    if (cloud_x < 0)
+                        cloud_x += SCREEN_W;
+                    cloud_rect_left.x = cloud_x - SCREEN_W;
+                    cloud_rect_right.x = cloud_x;
+                }
+
+                cameraCenter.x = std::clamp(player.rect.x + (player.rect.w / 2.0), CAMERA_BOUND_LEFT, CAMERA_BOUND_RIGHT);
+                cameraCenter.y = std::clamp(player.rect.y + 80, CAMERA_BOUND_BOTTOM, CAMERA_BOUND_TOP);
+
+                DrawAtPosition(player.rect, cameraCenter, player_rect);
                 for (DrawableTerrain &drawableTerrain : drawableTerrains)
                 {
-                    if (util::Collides(player.rect, drawableTerrain.rect))
-                    {
-                        if (player.yVelocity < 0)
-                        {
-                            player.rect.y = drawableTerrain.rect.y + drawableTerrain.rect.h;
-                            player.yVelocity = 0;
-                            player.isGrounded = true;
-                            break;
-                        }
-                        else
-                        {
-                            player.rect.y = drawableTerrain.rect.y - player.rect.h;
-                            player.yVelocity = 0;
-                            break;
-                        }
-                    }
+                    DrawAtPosition(drawableTerrain.rect, cameraCenter, drawableTerrain.drawRect);
                 }
 
-                cloud_x -= .35;
-                if (cloud_x < 0)
-                    cloud_x += SCREEN_W;
-                cloud_rect_left.x = cloud_x - SCREEN_W;
-                cloud_rect_right.x = cloud_x;
-            }
+                bg_rect_right.x = (int)(-0.22 * cameraCenter.x) % SCREEN_W + player_offset_x;
+                if (bg_rect_right.x < 0)
+                    bg_rect_right.x += SCREEN_W;
+                bg_rect_left.x = bg_rect_right.x - SCREEN_W;
 
-            cameraCenter.x = std::clamp(player.rect.x + (player.rect.w / 2.0), CAMERA_BOUND_LEFT, CAMERA_BOUND_RIGHT);
-            cameraCenter.y = std::clamp(player.rect.y + 80, CAMERA_BOUND_BOTTOM, CAMERA_BOUND_TOP);
+                // Render
+                SDL_RenderClear(renderer);
+                SDL_SetRenderDrawColor(renderer, 90, 90, 115, 255);
 
-            DrawAtPosition(player.rect, cameraCenter, player_rect);
-            for (DrawableTerrain &drawableTerrain : drawableTerrains)
-            {
-                DrawAtPosition(drawableTerrain.rect, cameraCenter, drawableTerrain.drawRect);
-            }
+                SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_left);
+                SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_right);
 
-            bg_rect_right.x = (int)(-0.22 * cameraCenter.x) % SCREEN_W + player_offset_x;
-            if (bg_rect_right.x < 0)
-                bg_rect_right.x += SCREEN_W;
-            bg_rect_left.x = bg_rect_right.x - SCREEN_W;
+                SDL_RenderCopy(renderer, moon_texture.texture, NULL, NULL);
 
-            // Render
-            SDL_RenderClear(renderer);
-            SDL_SetRenderDrawColor(renderer, 90, 90, 115, 255);
+                SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_left);
+                SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_right);
 
-            SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_left);
-            SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_right);
+                for (DrawableTerrain &drawableTerrain : drawableTerrains)
+                {
+                    RenderRepeatedTexture(renderer, brick_texture, brick_texture.w * 4, brick_texture.h * 4, drawableTerrain.drawRect);
+                }
 
-            SDL_RenderCopy(renderer, moon_texture.texture, NULL, NULL);
+                SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 
-            SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_left);
-            SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_right);
-
-            for (DrawableTerrain &drawableTerrain : drawableTerrains)
-            {
-                RenderRepeatedTexture(renderer, brick_texture, brick_texture.w * 4, brick_texture.h * 4, drawableTerrain.drawRect);
-            }
-
-            SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
-
-            if (paused)
-            {
-                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 120);
-                SDL_RenderFillRect(renderer, &paused_shader_rect);
-                SDL_RenderCopy(renderer, paused_texture.texture, NULL, &paused_rect);
+                if (paused)
+                {
+                    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 120);
+                    SDL_RenderFillRect(renderer, &full_screen_rect);
+                    SDL_RenderCopy(renderer, paused_texture.texture, NULL, &paused_rect);
+                }
             }
 
             SDL_RenderPresent(renderer);
-
             std::fill(newly_pressed_keys, newly_pressed_keys + keyboard_size, 0);
         }
     }

@@ -29,6 +29,7 @@ using namespace util;
 // * Get stage bounds from the stage json
 // * Add player starting position to stage json
 // * Change the brick texture to be less mossy
+// * Support >60 fps
 
 std::list<SDL_Texture *> g_textures;
 
@@ -169,7 +170,18 @@ void DrawAtPosition(Drawable &drawable, Point camera_center)
     drawable.draw_rect.w = drawable.game_rect.w * GAME_TO_SCREEN_MULTIPLIER;
     drawable.draw_rect.x = TransformGameXToWindowX(drawable.game_rect.x - camera_center.x);
     drawable.draw_rect.h = drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER;
-    drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y - camera_center.y) - drawable.game_rect.h;
+    drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y - camera_center.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER);
+}
+
+/**
+ * Ignores camera position
+*/
+void DrawAtPositionStatic(Drawable &drawable)
+{
+    drawable.draw_rect.w = drawable.game_rect.w * GAME_TO_SCREEN_MULTIPLIER;
+    drawable.draw_rect.x = TransformGameXToWindowX(drawable.game_rect.x);
+    drawable.draw_rect.h = drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER;
+    drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER);
 }
 
 void PrintDrawRect(SDL_Rect rect)
@@ -184,7 +196,7 @@ int main(int argc, char **argv)
     std::string project_dir_path = build_dir_path.substr(0, build_dir_path.find_last_of("\\"));
 
     // TODO: Add SDL_WINDOW_RESIZABLE
-    SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
+    SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, SDL_WINDOW_RESIZABLE);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
@@ -200,6 +212,10 @@ int main(int argc, char **argv)
     SizedTexture moon_texture = LoadSizedTexture(project_dir_path + "/assets/moon.png", renderer);
     SizedTexture brick_texture = LoadSizedTexture(project_dir_path + "/assets/bricktexture.png", renderer);
     SizedTexture paused_texture = LoadSizedTexture(project_dir_path + "/assets/paused.png", renderer);
+
+    Drawable moon = {{
+        x: 480, y: 253, w: 67, h: 67
+    }, {}};
 
     std::ifstream f(project_dir_path + "/data/stage1.json");
     nlohmann::json stageData = nlohmann::json::parse(f);
@@ -301,6 +317,7 @@ int main(int argc, char **argv)
                     };
                     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
                     SDL_Rect cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
+                    GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / CAMERA_AREA_W;
                 }
             }
         }
@@ -476,7 +493,9 @@ int main(int argc, char **argv)
                 SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_left);
                 SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_right);
 
-                SDL_RenderCopy(renderer, moon_texture.texture, NULL, NULL);
+                // SDL_RenderCopy(renderer, moon_texture.texture, NULL, NULL);
+                DrawAtPositionStatic(moon);
+                SDL_RenderCopy(renderer, moon_texture.texture, NULL, &moon.draw_rect);
 
                 SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_left);
                 SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_right);

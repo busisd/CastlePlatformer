@@ -184,11 +184,6 @@ void DrawAtPositionStatic(Drawable &drawable)
     drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER);
 }
 
-void PrintDrawRect(SDL_Rect rect)
-{
-    std::cout << "x: " << rect.x << " y: " << rect.y << " w: " << rect.w << " h: " << rect.h << "\n";
-}
-
 int main(int argc, char **argv)
 {
     std::string exe_path = argv[0];
@@ -315,9 +310,10 @@ int main(int argc, char **argv)
                         w : (paused_texture.w * 4),
                         h : (paused_texture.h * 4)
                     };
-                    SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
-                    SDL_Rect cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
+                    cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
+                    cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
                     GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / CAMERA_AREA_W;
+                    full_screen_rect = {0, 0, SCREEN_W, SCREEN_H};
                 }
             }
         }

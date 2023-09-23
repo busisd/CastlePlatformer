@@ -39,6 +39,13 @@ namespace util
   void prettyLog(T t, Args... args);
 
   int PositiveModulo(int i, int n);
+
+  class Drawable
+  {
+  public:
+    util::Rect game_rect;
+    SDL_Rect draw_rect;
+  };
 }
 
 #include "util.tcc"

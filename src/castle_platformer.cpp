@@ -19,14 +19,10 @@
 // * Use area grouping to only calculate collision with nearby rects
 //   * Before running the game: For every 50x50 sector in the stage, do a Collision check (e.g. check the entire grid of the stage)
 //   * Once the game starts, use that data to only compare collisions for sectors the player is actually in
-// * Bound camera so that it can't show off-stage stuff at all (instead of just the center being bounded)
-// * Main menu, pause menu
 // * Jumping/landing animations
 // * Hold UP for longer jumps
 // * Draw polygons/slopes
-// * Walk up snopes with snap-up
-// * Pause screen (translucent with "Paused" displayed)
-// * Menu screen
+// * Walk up slopes with snap-up
 // * Option to set controls
 // * Save user options
 // * Reorganize game into its own class or function
@@ -117,7 +113,7 @@ int RenderRepeatedTexture(SDL_Renderer *renderer, util::SizedTexture sized_textu
  * It's based on Player Position; camera will try to focus on a point centered on
  * the player's X, and above-center in the Y direction.
  *
- * The Camera Area is an 800 by 450 rectangle (16:9 ratio) centered at 0,0.
+ * The Camera Area is an 1200 by 675 rectangle (16:9 ratio) centered at 0,0.
  * Bounds: (-400, 400) X; (-225, 225) Y
  * Objects with Game Coordinates are rendered within the Camera Area relative
  * to the Camera Position. For example: If the camera is at (30, 30) and an
@@ -135,8 +131,8 @@ const int PLAYER_HEIGHT = 153;
 const int GROUND_HEIGHT = 473;
 
 // GAME CONSTANTS (Regardless of window size)
-const int CAMERA_AREA_W = 800;
-const int CAMERA_AREA_H = 450;
+const int CAMERA_AREA_W = 1200;
+const int CAMERA_AREA_H = 675;
 
 const double STAGE_BOUND_LEFT = -800.0;
 const double STAGE_BOUND_RIGHT = 800.0;
@@ -164,13 +160,13 @@ int TransformGameYToWindowY(double game_y)
     return std::round((-game_y) * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_H / 2);
 }
 
-void DrawAtPosition(util::Rect rect, util::Point cameraCenter, SDL_Rect &drawRect)
+void DrawAtPosition(util::Rect rect, util::Point camera_center, SDL_Rect &draw_rect)
 {
     // TODO: Don't recalculate height/width every time?
-    drawRect.w = rect.w * GAME_TO_SCREEN_MULTIPLIER;
-    drawRect.x = TransformGameXToWindowX(rect.x - cameraCenter.x);
-    drawRect.h = rect.h * GAME_TO_SCREEN_MULTIPLIER;
-    drawRect.y = TransformGameYToWindowY(rect.y - cameraCenter.y) - drawRect.h;
+    draw_rect.w = rect.w * GAME_TO_SCREEN_MULTIPLIER;
+    draw_rect.x = TransformGameXToWindowX(rect.x - camera_center.x);
+    draw_rect.h = rect.h * GAME_TO_SCREEN_MULTIPLIER;
+    draw_rect.y = TransformGameYToWindowY(rect.y - camera_center.y) - draw_rect.h;
 }
 
 void PrintDrawRect(SDL_Rect rect)
@@ -180,7 +176,7 @@ void PrintDrawRect(SDL_Rect rect)
 
 struct DrawableTerrain
 {
-    SDL_Rect drawRect;
+    SDL_Rect draw_rect;
     util::Rect rect;
 };
 
@@ -190,7 +186,7 @@ int main(int argc, char **argv)
     std::string build_dir_path = exe_path.substr(0, exe_path.find_last_of("\\"));
     std::string project_dir_path = build_dir_path.substr(0, build_dir_path.find_last_of("\\"));
 
-    SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
+    SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, SDL_WINDOW_RESIZABLE);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
@@ -211,7 +207,7 @@ int main(int argc, char **argv)
     nlohmann::json stageData = nlohmann::json::parse(f);
 
     Player player;
-    util::Point cameraCenter;
+    util::Point camera_center;
 
     SDL_Rect player_rect = {x : 0, y : GROUND_HEIGHT - PLAYER_HEIGHT, w : (int)(PLAYER_HITBOX_WIDTH * GAME_TO_SCREEN_MULTIPLIER), h : PLAYER_HEIGHT};
     bool facing_left = false;
@@ -240,8 +236,8 @@ int main(int argc, char **argv)
     {
         drawableTerrains.push_back({{}, {x : terrainPiece["l"],
                                          y : terrainPiece["b"],
-                                         w : (double)terrainPiece["r"] - (double)terrainPiece["l"],
-                                         h : (double)terrainPiece["t"] - (double)terrainPiece["b"]}});
+                                         w : (double)terrainPiece["r"] - (double)terrainPiece["l"] + 1,
+                                         h : (double)terrainPiece["t"] - (double)terrainPiece["b"] + 1}});
     }
 
     double cloud_x = 0.0;
@@ -311,7 +307,7 @@ int main(int argc, char **argv)
                     menu_hovered_index = util::PositiveModulo(menu_hovered_index, menu_buttons.size());
                 }
 
-                if (newly_pressed_keys[SDL_SCANCODE_Z] || newly_pressed_keys[SDL_SCANCODE_SPACE] || newly_pressed_keys[SDL_SCANCODE_KP_ENTER])
+                if (newly_pressed_keys[SDL_SCANCODE_Z] || newly_pressed_keys[SDL_SCANCODE_SPACE] || newly_pressed_keys[SDL_SCANCODE_RETURN])
                 {
                     if (menu_hovered_index == MENU_START_INDEX)
                     {
@@ -359,10 +355,10 @@ int main(int argc, char **argv)
                 {
                     if (keyboard_state[SDL_SCANCODE_UP])
                     {
-                        if (player.isGrounded)
+                        if (player.is_grounded)
                         {
-                            player.yVelocity = 13.0 + 0.6;
-                            player.isGrounded = false;
+                            player.y_velocity = 13.0 + 0.6;
+                            player.is_grounded = false;
                         }
                     }
                     if (keyboard_state[SDL_SCANCODE_DOWN])
@@ -399,25 +395,25 @@ int main(int argc, char **argv)
                         util::prettyLog("x:", player.rect.x, "y:", player.rect.y);
                     }
 
-                    player.yVelocity -= 0.6;
-                    player.yVelocity = std::max(player.yVelocity, player.maxFallSpeed);
-                    player.rect.y += player.yVelocity;
-                    player.isGrounded = false;
+                    player.y_velocity -= 0.6;
+                    player.y_velocity = std::max(player.y_velocity, player.max_fall_speed);
+                    player.rect.y += player.y_velocity;
+                    player.is_grounded = false;
                     for (DrawableTerrain &drawableTerrain : drawableTerrains)
                     {
                         if (util::Collides(player.rect, drawableTerrain.rect))
                         {
-                            if (player.yVelocity < 0)
+                            if (player.y_velocity < 0)
                             {
                                 player.rect.y = drawableTerrain.rect.y + drawableTerrain.rect.h;
-                                player.yVelocity = 0;
-                                player.isGrounded = true;
+                                player.y_velocity = 0;
+                                player.is_grounded = true;
                                 break;
                             }
                             else
                             {
                                 player.rect.y = drawableTerrain.rect.y - player.rect.h;
-                                player.yVelocity = 0;
+                                player.y_velocity = 0;
                                 break;
                             }
                         }
@@ -430,16 +426,16 @@ int main(int argc, char **argv)
                     cloud_rect_right.x = cloud_x;
                 }
 
-                cameraCenter.x = std::clamp(player.rect.x + (player.rect.w / 2.0), CAMERA_BOUND_LEFT, CAMERA_BOUND_RIGHT);
-                cameraCenter.y = std::clamp(player.rect.y + 80, CAMERA_BOUND_BOTTOM, CAMERA_BOUND_TOP);
+                camera_center.x = std::clamp(player.rect.x + (player.rect.w / 2.0), CAMERA_BOUND_LEFT, CAMERA_BOUND_RIGHT);
+                camera_center.y = std::clamp(player.rect.y + 80, CAMERA_BOUND_BOTTOM, CAMERA_BOUND_TOP);
 
-                DrawAtPosition(player.rect, cameraCenter, player_rect);
+                DrawAtPosition(player.rect, camera_center, player_rect);
                 for (DrawableTerrain &drawableTerrain : drawableTerrains)
                 {
-                    DrawAtPosition(drawableTerrain.rect, cameraCenter, drawableTerrain.drawRect);
+                    DrawAtPosition(drawableTerrain.rect, camera_center, drawableTerrain.draw_rect);
                 }
 
-                bg_rect_right.x = (int)(-0.22 * cameraCenter.x) % SCREEN_W + player_offset_x;
+                bg_rect_right.x = (int)(-0.22 * camera_center.x) % SCREEN_W + player_offset_x;
                 if (bg_rect_right.x < 0)
                     bg_rect_right.x += SCREEN_W;
                 bg_rect_left.x = bg_rect_right.x - SCREEN_W;
@@ -458,7 +454,7 @@ int main(int argc, char **argv)
 
                 for (DrawableTerrain &drawableTerrain : drawableTerrains)
                 {
-                    RenderRepeatedTexture(renderer, brick_texture, brick_texture.w * 4, brick_texture.h * 4, drawableTerrain.drawRect);
+                    RenderRepeatedTexture(renderer, brick_texture, brick_texture.w * 4, brick_texture.h * 4, drawableTerrain.draw_rect);
                 }
 
                 SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);

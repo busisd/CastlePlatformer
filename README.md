@@ -16,3 +16,5 @@ Required libraries (managed via `pacman` in [MSYS2](https://www.msys2.org/)):
 
 Note: Run the VSCode "C/C++: g++.exe build castle_platformer" task to build the project.
 You can also use "C/C++: g++.exe build and debug castle_platformer" from `launch.json`.
+
+Note: Font used is Courier New Bold size 12

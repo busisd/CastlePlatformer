@@ -3,16 +3,14 @@
 
 #include "util.h"
 
-// x(0.0f), y(-100.0f), width(46.0f), height(94.0f)
-
 class Player
 {
 public:
-  Player() : rect{0.0, -100.0, 46.0, 94.0}, maxFallSpeed(-15) {}
+  Player() : rect{0.0, -100.0, 46.0, 94.0}, max_fall_speed(-15) {}
   util::Rect rect;
-  bool isGrounded;
-  double yVelocity;
-  double maxFallSpeed;
+  bool is_grounded;
+  double y_velocity;
+  double max_fall_speed;
 };
 
 #endif

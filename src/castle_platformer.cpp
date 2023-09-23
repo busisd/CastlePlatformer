@@ -27,6 +27,9 @@
 // * Save user options
 // * Reorganize game into its own class or function
 // * Change menu boolean to enum of views (menu, settings, game)
+// * Get stage bounds from the stage json
+// * Add player starting position to stage json
+// * Change the brick texture to be less mossy
 
 std::list<SDL_Texture *> g_textures;
 
@@ -113,31 +116,32 @@ int RenderRepeatedTexture(SDL_Renderer *renderer, util::SizedTexture sized_textu
  * It's based on Player Position; camera will try to focus on a point centered on
  * the player's X, and above-center in the Y direction.
  *
- * The Camera Area is an 1200 by 675 rectangle (16:9 ratio) centered at 0,0.
- * Bounds: (-400, 400) X; (-225, 225) Y
+ * The Camera Area is an 1280 by 720 rectangle (16:9 ratio) centered at 0,0.
+ * Bounds: (-640, 640) X; (-360, 360) Y
  * Objects with Game Coordinates are rendered within the Camera Area relative
  * to the Camera Position. For example: If the camera is at (30, 30) and an
  * object is at (40, 40), it would be rendered at a Camera Position of (10, 10),
  * which would be converted to its true coordinate on the screen.
  */
 
-// SCREEN CONSTANTS (Eventually should adapt to window size)
-const int SCREEN_W = 1280;
-const int SCREEN_H = 720;
+// SCREEN CONSTANTS
+int SCREEN_W = 1280;
+int SCREEN_H = 720;
+
+const int SCREEN_RATIO_W = 16;
+const int SCREEN_RATIO_H = 9;
 
 const int PLAYER_WIDTH = 73;
 const int PLAYER_HEIGHT = 153;
 
-const int GROUND_HEIGHT = 473;
-
 // GAME CONSTANTS (Regardless of window size)
-const int CAMERA_AREA_W = 1200;
-const int CAMERA_AREA_H = 675;
+const int CAMERA_AREA_W = 1280;
+const int CAMERA_AREA_H = 720;
 
-const double STAGE_BOUND_LEFT = -800.0;
-const double STAGE_BOUND_RIGHT = 800.0;
-const double STAGE_BOUND_BOTTOM = -325.0;
-const double STAGE_BOUND_TOP = 400.0;
+const double STAGE_BOUND_LEFT = -1000.0;
+const double STAGE_BOUND_RIGHT = 1000.0;
+const double STAGE_BOUND_BOTTOM = -425.0;
+const double STAGE_BOUND_TOP = 600.0;
 
 const double CAMERA_BOUND_LEFT = STAGE_BOUND_LEFT + CAMERA_AREA_W / 2;
 const double CAMERA_BOUND_RIGHT = STAGE_BOUND_RIGHT - CAMERA_AREA_W / 2;
@@ -147,7 +151,6 @@ const double CAMERA_BOUND_TOP = STAGE_BOUND_TOP - CAMERA_AREA_H / 2;
 const int PLAYER_HITBOX_WIDTH = 46;
 
 // Conversion from Game to Screen position
-// TODO: Game should maintain ratio while displaying as large as possible
 double GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / CAMERA_AREA_W;
 
 int TransformGameXToWindowX(double game_x)
@@ -186,7 +189,8 @@ int main(int argc, char **argv)
     std::string build_dir_path = exe_path.substr(0, exe_path.find_last_of("\\"));
     std::string project_dir_path = build_dir_path.substr(0, build_dir_path.find_last_of("\\"));
 
-    SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, SDL_WINDOW_RESIZABLE);
+    // TODO: Add SDL_WINDOW_RESIZABLE
+    SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
@@ -209,7 +213,7 @@ int main(int argc, char **argv)
     Player player;
     util::Point camera_center;
 
-    SDL_Rect player_rect = {x : 0, y : GROUND_HEIGHT - PLAYER_HEIGHT, w : (int)(PLAYER_HITBOX_WIDTH * GAME_TO_SCREEN_MULTIPLIER), h : PLAYER_HEIGHT};
+    SDL_Rect player_rect = {x : 0, y : 0, w : (int)(PLAYER_HITBOX_WIDTH * GAME_TO_SCREEN_MULTIPLIER), h : PLAYER_HEIGHT};
     bool facing_left = false;
 
     double player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
@@ -272,6 +276,37 @@ int main(int argc, char **argv)
                 if (event.key.repeat == 0)
                 {
                     newly_pressed_keys[event.key.keysym.scancode] = 1;
+                }
+            case SDL_WINDOWEVENT:
+                if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+                {
+                    util::prettyLog("Window size changed", event.window.data1, event.window.data2);
+                    const int new_screen_w = event.window.data1;
+                    const int new_screen_h = event.window.data2;
+                    if (new_screen_w * SCREEN_RATIO_H >= new_screen_h * SCREEN_RATIO_W)
+                    { // Display area is height-bounded
+                        SCREEN_H = new_screen_h;
+                        SCREEN_W = new_screen_h * SCREEN_RATIO_W / SCREEN_RATIO_H;
+                    }
+                    else
+                    { // Display area is width-bounded
+                        SCREEN_W = new_screen_w;
+                        SCREEN_H = new_screen_w * SCREEN_RATIO_H / SCREEN_RATIO_W;
+                    }
+                    util::prettyLog("New window sizes", SCREEN_W, SCREEN_H);
+
+                    // Recalculate anything depending on SCREEN_W or SCREEN_H
+                    player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
+                    bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
+                    bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
+                    paused_rect = {
+                        x : SCREEN_W / 2 - (paused_texture.w * 4) / 2,
+                        y : SCREEN_H / 2 - (paused_texture.h * 4) / 2,
+                        w : (paused_texture.w * 4),
+                        h : (paused_texture.h * 4)
+                    };
+                    SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
+                    SDL_Rect cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
                 }
             }
         }

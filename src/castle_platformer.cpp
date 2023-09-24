@@ -141,8 +141,8 @@ int ACTUAL_SCREEN_W = 1280;
 int ACTUAL_SCREEN_H = 720;
 int SCREEN_W = 1280;
 int SCREEN_H = 720;
-int SCREEN_X_PADDING = 0;
-int SCREEN_Y_PADDING = 0;
+int SCREEN_PADDING_X = 0;
+int SCREEN_PADDING_Y = 0;
 
 const int SCREEN_RATIO_W = 16;
 const int SCREEN_RATIO_H = 9;
@@ -194,9 +194,9 @@ void DrawAtPosition(Point camera_center, Drawable &drawable)
     // TODO: Possible optimization, don't recalculate height/width every time
     // (Cache it for each sprite until window size changes)
     drawable.draw_rect.w = drawable.game_rect.w * GAME_TO_SCREEN_MULTIPLIER;
-    drawable.draw_rect.x = TransformGameXToWindowX(drawable.game_rect.x - camera_center.x);
+    drawable.draw_rect.x = TransformGameXToWindowX(drawable.game_rect.x - camera_center.x) + SCREEN_PADDING_X;
     drawable.draw_rect.h = drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER;
-    drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y - camera_center.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER);
+    drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y - camera_center.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER) + SCREEN_PADDING_Y;
 }
 
 /**
@@ -205,9 +205,9 @@ void DrawAtPosition(Point camera_center, Drawable &drawable)
 void DrawAtPositionStatic(Drawable &drawable)
 {
     drawable.draw_rect.w = drawable.game_rect.w * GAME_TO_SCREEN_MULTIPLIER;
-    drawable.draw_rect.x = TransformGameXToWindowX(drawable.game_rect.x);
+    drawable.draw_rect.x = TransformGameXToWindowX(drawable.game_rect.x) + SCREEN_PADDING_X;
     drawable.draw_rect.h = drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER;
-    drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER);
+    drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER) + SCREEN_PADDING_Y;
 }
 
 void RenderAtPosition(SDL_Renderer *renderer, Point camera_center, Drawable &drawable)
@@ -232,8 +232,8 @@ void RenderAtPositionStatic(SDL_Renderer *renderer, Drawable &drawable)
 
 void RenderFullScreenRect(SDL_Renderer *renderer) {
     SDL_Rect full_screen_rect = {
-        x: 0,
-        y: 0,
+        x: SCREEN_PADDING_X,
+        y: SCREEN_PADDING_Y,
         w: SCREEN_W,
         h: SCREEN_H
     };
@@ -307,7 +307,9 @@ int main(int argc, char **argv)
 
     Drawable moon = {{x : 480, y : 253, w : 67, h : 67}, texture : moon_texture};
 
+    SDL_Rect screen_bar_left = {};
     SDL_Rect screen_bar_right = {};
+    SDL_Rect screen_bar_top = {};
     SDL_Rect screen_bar_bottom = {};
 
     bool isRunning = true;
@@ -348,22 +350,26 @@ int main(int argc, char **argv)
                     { // Display area is height-bounded
                         SCREEN_H = ACTUAL_SCREEN_H;
                         SCREEN_W = ACTUAL_SCREEN_H * SCREEN_RATIO_W / SCREEN_RATIO_H;
-                        screen_bar_right = {x : SCREEN_W, y : 0, w : ACTUAL_SCREEN_W - SCREEN_W, h : SCREEN_H};
-                        screen_bar_bottom = {};
                     }
                     else
                     { // Display area is width-bounded
                         SCREEN_W = ACTUAL_SCREEN_W;
                         SCREEN_H = ACTUAL_SCREEN_W * SCREEN_RATIO_H / SCREEN_RATIO_W;
-                        screen_bar_right = {};
-                        screen_bar_bottom = {x : 0, y : SCREEN_H, w : SCREEN_W, h : ACTUAL_SCREEN_H - SCREEN_H};
                     }
-                    SCREEN_X_PADDING = SCREEN_W - ACTUAL_SCREEN_W;
-                    SCREEN_Y_PADDING = SCREEN_H - ACTUAL_SCREEN_H;
+
                     // prettyLog("New window size", SCREEN_W, SCREEN_H);
 
                     // Recalculate anything depending on SCREEN_W or SCREEN_H
                     GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / GAME_BOX_W;
+
+                    // Amount of padding per side when the aspect ratio is not perfect,
+                    // in order to center the game
+                    SCREEN_PADDING_X = (ACTUAL_SCREEN_W - SCREEN_W) / 2;
+                    SCREEN_PADDING_Y = (ACTUAL_SCREEN_H - SCREEN_H) / 2;
+                    screen_bar_left = {x : 0, y : 0, w : SCREEN_PADDING_X, h : ACTUAL_SCREEN_H};
+                    screen_bar_right = {x : ACTUAL_SCREEN_W - SCREEN_PADDING_X, y : 0, w : SCREEN_PADDING_X, h : ACTUAL_SCREEN_H};
+                    screen_bar_top = {x: 0, y: 0, w: ACTUAL_SCREEN_W, h: SCREEN_PADDING_Y};
+                    screen_bar_bottom = {x : 0, y : ACTUAL_SCREEN_H - SCREEN_PADDING_Y, w : ACTUAL_SCREEN_W, h : SCREEN_PADDING_Y};
                 }
             }
         }
@@ -541,11 +547,12 @@ int main(int argc, char **argv)
                     RenderFullScreenRect(renderer);
                     RenderAtPositionStatic(renderer, paused_text);
                 }
-
-                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-                SDL_RenderFillRect(renderer, &screen_bar_right);
-                SDL_RenderFillRect(renderer, &screen_bar_bottom);
             }
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_RenderFillRect(renderer, &screen_bar_left);
+            SDL_RenderFillRect(renderer, &screen_bar_right);
+            SDL_RenderFillRect(renderer, &screen_bar_top);
+            SDL_RenderFillRect(renderer, &screen_bar_bottom);
 
             SDL_RenderPresent(renderer);
             std::fill(newly_pressed_keys, newly_pressed_keys + keyboard_size, 0);

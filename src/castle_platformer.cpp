@@ -30,6 +30,7 @@ using namespace util;
 // * Add player starting position to stage json
 // * Change the brick texture to be less mossy
 // * Support >60 fps
+// * Center the screen when the aspect ratio is not perfect
 
 std::list<SDL_Texture *> g_textures;
 
@@ -253,6 +254,9 @@ int main(int argc, char **argv)
     SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
     SDL_Rect cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
+    SDL_Rect screen_bar_right = {};
+    SDL_Rect screen_bar_bottom = {};
+
     bool isRunning = true;
     SDL_Event event;
 
@@ -292,11 +296,15 @@ int main(int argc, char **argv)
                     { // Display area is height-bounded
                         SCREEN_H = new_screen_h;
                         SCREEN_W = new_screen_h * SCREEN_RATIO_W / SCREEN_RATIO_H;
+                        screen_bar_right = {x: SCREEN_W, y: 0, w: new_screen_w - SCREEN_W, h: SCREEN_H};
+                        screen_bar_bottom = {};
                     }
                     else
                     { // Display area is width-bounded
                         SCREEN_W = new_screen_w;
                         SCREEN_H = new_screen_w * SCREEN_RATIO_H / SCREEN_RATIO_W;
+                        screen_bar_right = {};
+                        screen_bar_bottom = {x: 0, y: SCREEN_H, w: SCREEN_W, h: new_screen_h - SCREEN_H};
                     }
                     prettyLog("New window sizes", SCREEN_W, SCREEN_H);
 
@@ -509,6 +517,9 @@ int main(int argc, char **argv)
                     SDL_RenderFillRect(renderer, &full_screen_rect);
                     SDL_RenderCopy(renderer, paused_texture.texture, NULL, &paused_rect);
                 }
+
+                SDL_RenderFillRect(renderer, &screen_bar_right);
+                SDL_RenderFillRect(renderer, &screen_bar_bottom);
             }
 
             SDL_RenderPresent(renderer);

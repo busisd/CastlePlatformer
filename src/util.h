@@ -30,7 +30,7 @@ namespace util
   {
     int w;
     int h;
-    SDL_Texture *texture;
+    SDL_Texture *sdl_texture;
   };
 
   bool Collides(Rect rect1, Rect rect2);
@@ -44,7 +44,11 @@ namespace util
   {
   public:
     util::Rect game_rect;
+
     SDL_Rect draw_rect;
+    SDL_RendererFlip flip = SDL_FLIP_NONE;
+    util::SizedTexture texture;
+    bool is_repeating_texture = false;
   };
 }
 

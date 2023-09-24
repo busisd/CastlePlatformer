@@ -20,6 +20,7 @@ using namespace util;
 //   * Once the game starts, use that data to only compare collisions for sectors the player is actually in
 // * Jumping/landing animations
 // * Hold UP for longer jumps
+// * Double jumps
 // * Draw polygons/slopes
 // * Walk up slopes with snap-up
 // * Option to set controls
@@ -31,6 +32,16 @@ using namespace util;
 // * Change the brick texture to be less mossy
 // * Support >60 fps
 // * Center the screen when the aspect ratio is not perfect
+// * Make repeated textures the same regardless of window size
+// * Make menu buttons the same regardless of window size
+// * Make pixel art always correspond to game size
+//   * Or some fraction of game size that can be scaled up in various ways
+// * Add setting to "snap" game resolution to the biggest perfect multiple
+// * Consider not letter-boxing the screen
+//   * Logic to show extra; OR
+//   * Reverse logic for bounding the screen so it always shows less
+// * Move Texture into Drawable
+// * Move rendering into a class so that camera position and renderer don't need to be passed in
 
 std::list<SDL_Texture *> g_textures;
 
@@ -61,8 +72,8 @@ void DestroyTextures()
 SizedTexture LoadSizedTexture(std::string path, SDL_Renderer *renderer)
 {
     SizedTexture sized_texture;
-    sized_texture.texture = LoadTexture(path, renderer);
-    SDL_QueryTexture(sized_texture.texture, NULL, NULL, &(sized_texture.w), &(sized_texture.h));
+    sized_texture.sdl_texture = LoadTexture(path, renderer);
+    SDL_QueryTexture(sized_texture.sdl_texture, NULL, NULL, &(sized_texture.w), &(sized_texture.h));
     return sized_texture;
 }
 
@@ -102,7 +113,7 @@ int RenderRepeatedTexture(SDL_Renderer *renderer, SizedTexture sized_texture, in
                 h : std::min(src_h, (dstrect.y + dstrect.h) - dest_y)
             };
 
-            status_code = SDL_RenderCopy(renderer, sized_texture.texture, &src_rect, &dest_rect);
+            status_code = SDL_RenderCopy(renderer, sized_texture.sdl_texture, &src_rect, &dest_rect);
             if (status_code != 0)
                 return status_code;
         }
@@ -126,8 +137,12 @@ int RenderRepeatedTexture(SDL_Renderer *renderer, SizedTexture sized_texture, in
  */
 
 // SCREEN CONSTANTS
+int ACTUAL_SCREEN_W = 1280;
+int ACTUAL_SCREEN_H = 720;
 int SCREEN_W = 1280;
 int SCREEN_H = 720;
+int SCREEN_X_PADDING = 0;
+int SCREEN_Y_PADDING = 0;
 
 const int SCREEN_RATIO_W = 16;
 const int SCREEN_RATIO_H = 9;
@@ -136,9 +151,16 @@ const int PLAYER_WIDTH = 73;
 const int PLAYER_HEIGHT = 153;
 
 // GAME CONSTANTS (Regardless of window size)
-const int CAMERA_AREA_W = 1280;
-const int CAMERA_AREA_H = 720;
+// Game box area is the
+const int GAME_BOX_W = 1280;
+const int GAME_BOX_H = 720;
 
+const int GAME_BOX_BOUND_LEFT = -(GAME_BOX_W / 2);
+const int GAME_BOX_BOUND_RIGHT = GAME_BOX_W / 2;
+const int GAME_BOX_BOUND_TOP = GAME_BOX_H / 2;
+const int GAME_BOX_BOUND_BOTTOM = -(GAME_BOX_H / 2);
+
+// CAMERA CONSTANTS
 const int CAMERA_CENTER_VERTICAL_OFFSET = 120;
 
 const double STAGE_BOUND_LEFT = -1000.0;
@@ -146,13 +168,16 @@ const double STAGE_BOUND_RIGHT = 1000.0;
 const double STAGE_BOUND_BOTTOM = -425.0;
 const double STAGE_BOUND_TOP = 600.0;
 
-const double CAMERA_BOUND_LEFT = STAGE_BOUND_LEFT + CAMERA_AREA_W / 2;
-const double CAMERA_BOUND_RIGHT = STAGE_BOUND_RIGHT - CAMERA_AREA_W / 2;
-const double CAMERA_BOUND_BOTTOM = STAGE_BOUND_BOTTOM + CAMERA_AREA_H / 2;
-const double CAMERA_BOUND_TOP = STAGE_BOUND_TOP - CAMERA_AREA_H / 2;
+const double CAMERA_BOUND_LEFT = STAGE_BOUND_LEFT + GAME_BOX_W / 2;
+const double CAMERA_BOUND_RIGHT = STAGE_BOUND_RIGHT - GAME_BOX_W / 2;
+const double CAMERA_BOUND_BOTTOM = STAGE_BOUND_BOTTOM + GAME_BOX_H / 2;
+const double CAMERA_BOUND_TOP = STAGE_BOUND_TOP - GAME_BOX_H / 2;
 
 // Conversion from Game to Screen position
-double GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / CAMERA_AREA_W;
+double GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / GAME_BOX_W;
+
+// Other
+const double BG_SCROLL_SPEED = -0.22;
 
 int TransformGameXToWindowX(double game_x)
 {
@@ -164,7 +189,7 @@ int TransformGameYToWindowY(double game_y)
     return std::round((-game_y) * GAME_TO_SCREEN_MULTIPLIER) + (SCREEN_H / 2);
 }
 
-void DrawAtPosition(Drawable &drawable, Point camera_center)
+void DrawAtPosition(Point camera_center, Drawable &drawable)
 {
     // TODO: Possible optimization, don't recalculate height/width every time
     // (Cache it for each sprite until window size changes)
@@ -176,7 +201,7 @@ void DrawAtPosition(Drawable &drawable, Point camera_center)
 
 /**
  * Ignores camera position
-*/
+ */
 void DrawAtPositionStatic(Drawable &drawable)
 {
     drawable.draw_rect.w = drawable.game_rect.w * GAME_TO_SCREEN_MULTIPLIER;
@@ -185,13 +210,42 @@ void DrawAtPositionStatic(Drawable &drawable)
     drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER);
 }
 
+void RenderAtPosition(SDL_Renderer *renderer, Point camera_center, Drawable &drawable)
+{
+    DrawAtPosition(camera_center, drawable);
+    if (drawable.is_repeating_texture)
+    {
+        // TODO: Remove hardcoded *4
+        RenderRepeatedTexture(renderer, drawable.texture, drawable.texture.w * 4, drawable.texture.h * 4, drawable.draw_rect);
+    }
+    else
+    {
+        SDL_RenderCopyEx(renderer, drawable.texture.sdl_texture, NULL, &drawable.draw_rect, 0, NULL, drawable.flip);
+    }
+}
+
+void RenderAtPositionStatic(SDL_Renderer *renderer, Drawable &drawable)
+{
+    DrawAtPositionStatic(drawable);
+    SDL_RenderCopy(renderer, drawable.texture.sdl_texture, NULL, &drawable.draw_rect);
+}
+
+void RenderFullScreenRect(SDL_Renderer *renderer) {
+    SDL_Rect full_screen_rect = {
+        x: 0,
+        y: 0,
+        w: SCREEN_W,
+        h: SCREEN_H
+    };
+    SDL_RenderFillRect(renderer, &full_screen_rect);
+}
+
 int main(int argc, char **argv)
 {
     std::string exe_path = argv[0];
     std::string build_dir_path = exe_path.substr(0, exe_path.find_last_of("\\"));
     std::string project_dir_path = build_dir_path.substr(0, build_dir_path.find_last_of("\\"));
 
-    // TODO: Add SDL_WINDOW_RESIZABLE
     SDL_Window *window = SDL_CreateWindow("Castle Platformer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_W, SCREEN_H, SDL_WINDOW_RESIZABLE);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -209,50 +263,49 @@ int main(int argc, char **argv)
     SizedTexture brick_texture = LoadSizedTexture(project_dir_path + "/assets/bricktexture.png", renderer);
     SizedTexture paused_texture = LoadSizedTexture(project_dir_path + "/assets/paused.png", renderer);
 
-    Drawable moon = {{
-        x: 480, y: 253, w: 67, h: 67
-    }, {}};
-
     std::ifstream f(project_dir_path + "/data/stage1.json");
     nlohmann::json stageData = nlohmann::json::parse(f);
 
     Player player;
+    player.rects.texture = king_texture;
     Point camera_center;
-
-    bool facing_left = false;
-
-    double player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
-    SDL_Rect bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
-    SDL_Rect bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
 
     bool menu = true;
     int menu_hovered_index = 0;
     const std::vector<SizedTexture> menu_buttons = {text_start, text_settings, text_exit};
+    std::vector<Drawable> menu_buttons_text = {
+        {game_rect : {x : -200, y : -48, w : 400, h : 96}, texture : text_start},
+        {game_rect : {x : -200, y : -193, w : 400, h : 96}, texture : text_settings},
+        {game_rect : {x : -200, y : -338, w : 400, h : 96}, texture : text_exit},
+    };
+    Drawable menu_buttons_bg = {};
     const int MENU_START_INDEX = 0;
     const int MENU_EXIT_INDEX = 2;
 
-    bool paused = false;
-    SDL_Rect paused_rect = {
-        x : SCREEN_W / 2 - (paused_texture.w * 4) / 2,
-        y : SCREEN_H / 2 - (paused_texture.h * 4) / 2,
-        w : (paused_texture.w * 4),
-        h : (paused_texture.h * 4)
-    };
-    SDL_Rect full_screen_rect = {0, 0, SCREEN_W, SCREEN_H};
-
-    std::list<Drawable> drawableTerrains;
+    std::list<Drawable> drawable_terrains;
     for (auto terrainPiece : stageData["terrain"])
     {
-        drawableTerrains.push_back({{x : terrainPiece["l"],
-                                     y : terrainPiece["b"],
-                                     w : (double)terrainPiece["r"] - (double)terrainPiece["l"] + 1,
-                                     h : (double)terrainPiece["t"] - (double)terrainPiece["b"] + 1},
-                                    {}});
+        drawable_terrains.push_back({
+            game_rect : {x : terrainPiece["l"],
+                         y : terrainPiece["b"],
+                         w : (double)terrainPiece["r"] - (double)terrainPiece["l"] + 1,
+                         h : (double)terrainPiece["t"] - (double)terrainPiece["b"] + 1},
+            texture : brick_texture,
+            is_repeating_texture : true
+        });
     }
 
+    Drawable bg_left = {{x : -GAME_BOX_W, y : GAME_BOX_BOUND_BOTTOM, w : GAME_BOX_W, h : GAME_BOX_H}, texture : bg_texture};
+    Drawable bg_right = {{x : 0, y : GAME_BOX_BOUND_BOTTOM, w : GAME_BOX_W, h : GAME_BOX_H}, texture : bg_texture};
+
+    bool paused = false;
+    Drawable paused_text = {{x : -188, y : -32, w : 376, h : 64}, texture : paused_texture};
+
     double cloud_x = 0.0;
-    SDL_Rect cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
-    SDL_Rect cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
+    Drawable clouds_left = {{x : -GAME_BOX_W, y : GAME_BOX_BOUND_BOTTOM, w : GAME_BOX_W, h : GAME_BOX_H}, texture : clouds_texture};
+    Drawable clouds_right = {{x : 0, y : GAME_BOX_BOUND_BOTTOM, w : GAME_BOX_W, h : GAME_BOX_H}, texture : clouds_texture};
+
+    Drawable moon = {{x : 480, y : 253, w : 67, h : 67}, texture : moon_texture};
 
     SDL_Rect screen_bar_right = {};
     SDL_Rect screen_bar_bottom = {};
@@ -289,39 +342,28 @@ int main(int argc, char **argv)
             case SDL_WINDOWEVENT:
                 if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
                 {
-                    prettyLog("Window size changed", event.window.data1, event.window.data2);
-                    const int new_screen_w = event.window.data1;
-                    const int new_screen_h = event.window.data2;
-                    if (new_screen_w * SCREEN_RATIO_H >= new_screen_h * SCREEN_RATIO_W)
+                    ACTUAL_SCREEN_W = event.window.data1;
+                    ACTUAL_SCREEN_H = event.window.data2;
+                    if (ACTUAL_SCREEN_W * SCREEN_RATIO_H >= ACTUAL_SCREEN_H * SCREEN_RATIO_W)
                     { // Display area is height-bounded
-                        SCREEN_H = new_screen_h;
-                        SCREEN_W = new_screen_h * SCREEN_RATIO_W / SCREEN_RATIO_H;
-                        screen_bar_right = {x: SCREEN_W, y: 0, w: new_screen_w - SCREEN_W, h: SCREEN_H};
+                        SCREEN_H = ACTUAL_SCREEN_H;
+                        SCREEN_W = ACTUAL_SCREEN_H * SCREEN_RATIO_W / SCREEN_RATIO_H;
+                        screen_bar_right = {x : SCREEN_W, y : 0, w : ACTUAL_SCREEN_W - SCREEN_W, h : SCREEN_H};
                         screen_bar_bottom = {};
                     }
                     else
                     { // Display area is width-bounded
-                        SCREEN_W = new_screen_w;
-                        SCREEN_H = new_screen_w * SCREEN_RATIO_H / SCREEN_RATIO_W;
+                        SCREEN_W = ACTUAL_SCREEN_W;
+                        SCREEN_H = ACTUAL_SCREEN_W * SCREEN_RATIO_H / SCREEN_RATIO_W;
                         screen_bar_right = {};
-                        screen_bar_bottom = {x: 0, y: SCREEN_H, w: SCREEN_W, h: new_screen_h - SCREEN_H};
+                        screen_bar_bottom = {x : 0, y : SCREEN_H, w : SCREEN_W, h : ACTUAL_SCREEN_H - SCREEN_H};
                     }
-                    prettyLog("New window sizes", SCREEN_W, SCREEN_H);
+                    SCREEN_X_PADDING = SCREEN_W - ACTUAL_SCREEN_W;
+                    SCREEN_Y_PADDING = SCREEN_H - ACTUAL_SCREEN_H;
+                    // prettyLog("New window size", SCREEN_W, SCREEN_H);
 
                     // Recalculate anything depending on SCREEN_W or SCREEN_H
-                    player_offset_x = (SCREEN_W / 2 - (PLAYER_WIDTH / 2));
-                    bg_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
-                    bg_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
-                    paused_rect = {
-                        x : SCREEN_W / 2 - (paused_texture.w * 4) / 2,
-                        y : SCREEN_H / 2 - (paused_texture.h * 4) / 2,
-                        w : (paused_texture.w * 4),
-                        h : (paused_texture.h * 4)
-                    };
-                    cloud_rect_left = {x : -SCREEN_W, y : 0, w : SCREEN_W, h : SCREEN_H};
-                    cloud_rect_right = {x : 0, y : 0, w : SCREEN_W, h : SCREEN_H};
-                    GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / CAMERA_AREA_W;
-                    full_screen_rect = {0, 0, SCREEN_W, SCREEN_H};
+                    GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / GAME_BOX_W;
                 }
             }
         }
@@ -337,8 +379,10 @@ int main(int argc, char **argv)
 
             if (menu)
             {
+                // TODO: Should only need to call RenderClear in one location
                 SDL_RenderClear(renderer);
-                SDL_RenderCopy(renderer, bg_texture.texture, NULL, &full_screen_rect);
+                bg_right.game_rect.x = GAME_BOX_BOUND_LEFT;
+                RenderAtPositionStatic(renderer, bg_right);
 
                 if (newly_pressed_keys[SDL_SCANCODE_ESCAPE])
                 {
@@ -372,23 +416,11 @@ int main(int argc, char **argv)
 
                 for (int current_button_index = 0; current_button_index < menu_buttons.size(); current_button_index++)
                 {
-                    SizedTexture current_button = menu_buttons.at(current_button_index);
-                    SDL_Rect menu_button_rect = {
-                        x : SCREEN_W / 2 - (current_button.w * 4) / 2,
-                        y : SCREEN_H / 2 - (current_button.h * 4) / 2 + current_button_index + (int)(current_button.h * 4 * 1.5 * current_button_index),
-                        w : (current_button.w * 4),
-                        h : (current_button.h * 4)
-                    };
-
-                    if (current_button_index == menu_hovered_index)
-                    {
-                        SDL_RenderCopy(renderer, button_selected.texture, NULL, &menu_button_rect);
-                    }
-                    else
-                    {
-                        SDL_RenderCopy(renderer, button_unselected.texture, NULL, &menu_button_rect);
-                    }
-                    SDL_RenderCopy(renderer, current_button.texture, NULL, &menu_button_rect);
+                    Drawable current_button = menu_buttons_text.at(current_button_index);
+                    menu_buttons_bg.game_rect = current_button.game_rect;
+                    menu_buttons_bg.texture = (current_button_index == menu_hovered_index) ? button_selected : button_unselected;
+                    RenderAtPositionStatic(renderer, menu_buttons_bg);
+                    RenderAtPositionStatic(renderer, current_button);
                 }
             }
             else
@@ -417,7 +449,7 @@ int main(int argc, char **argv)
                     if (keyboard_state[SDL_SCANCODE_RIGHT])
                     {
                         player.rects.game_rect.x += 3.5;
-                        for (Drawable &drawableTerrain : drawableTerrains)
+                        for (Drawable &drawableTerrain : drawable_terrains)
                         {
                             if (Collides(player.rects.game_rect, drawableTerrain.game_rect))
                             {
@@ -425,12 +457,12 @@ int main(int argc, char **argv)
                                 break;
                             }
                         }
-                        facing_left = false;
+                        player.rects.flip = SDL_FLIP_NONE;
                     }
                     if (keyboard_state[SDL_SCANCODE_LEFT])
                     {
                         player.rects.game_rect.x -= 3.5;
-                        for (Drawable &drawableTerrain : drawableTerrains)
+                        for (Drawable &drawableTerrain : drawable_terrains)
                         {
                             if (Collides(player.rects.game_rect, drawableTerrain.game_rect))
                             {
@@ -438,7 +470,7 @@ int main(int argc, char **argv)
                                 break;
                             }
                         }
-                        facing_left = true;
+                        player.rects.flip = SDL_FLIP_HORIZONTAL;
                     }
                     if (keyboard_state[SDL_SCANCODE_I])
                     {
@@ -449,7 +481,7 @@ int main(int argc, char **argv)
                     player.y_velocity = std::max(player.y_velocity, player.max_fall_speed);
                     player.rects.game_rect.y += player.y_velocity;
                     player.is_grounded = false;
-                    for (Drawable &drawableTerrain : drawableTerrains)
+                    for (Drawable &drawableTerrain : drawable_terrains)
                     {
                         if (Collides(player.rects.game_rect, drawableTerrain.game_rect))
                         {
@@ -470,54 +502,47 @@ int main(int argc, char **argv)
                     }
 
                     cloud_x -= .35;
-                    if (cloud_x < 0)
-                        cloud_x += SCREEN_W;
-                    cloud_rect_left.x = cloud_x - SCREEN_W;
-                    cloud_rect_right.x = cloud_x;
+                    if (cloud_x < GAME_BOX_BOUND_LEFT)
+                    {
+                        cloud_x += GAME_BOX_W;
+                    }
+                    clouds_left.game_rect.x = cloud_x - GAME_BOX_W;
+                    clouds_right.game_rect.x = cloud_x;
                 }
 
                 camera_center.x = std::clamp(player.rects.game_rect.x + (player.rects.game_rect.w / 2.0), CAMERA_BOUND_LEFT, CAMERA_BOUND_RIGHT);
                 camera_center.y = std::clamp(player.rects.game_rect.y + CAMERA_CENTER_VERTICAL_OFFSET, CAMERA_BOUND_BOTTOM, CAMERA_BOUND_TOP);
 
-                DrawAtPosition(player.rects, camera_center);
-                for (Drawable &drawableTerrain : drawableTerrains)
-                {
-                    DrawAtPosition(drawableTerrain, camera_center);
-                }
-
-                bg_rect_right.x = (int)(-0.22 * camera_center.x) % SCREEN_W + player_offset_x;
-                if (bg_rect_right.x < 0)
-                    bg_rect_right.x += SCREEN_W;
-                bg_rect_left.x = bg_rect_right.x - SCREEN_W;
+                int bg_position = PositiveModulo((int)(BG_SCROLL_SPEED * camera_center.x) + (GAME_BOX_W / 2), GAME_BOX_W) - (GAME_BOX_W / 2);
+                bg_right.game_rect.x = bg_position;
+                bg_left.game_rect.x = bg_position - GAME_BOX_W;
 
                 // Render
                 SDL_RenderClear(renderer);
-                SDL_SetRenderDrawColor(renderer, 90, 90, 115, 255);
 
-                SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_left);
-                SDL_RenderCopy(renderer, bg_texture.texture, NULL, &bg_rect_right);
+                RenderAtPositionStatic(renderer, bg_left);
+                RenderAtPositionStatic(renderer, bg_right);
 
-                // SDL_RenderCopy(renderer, moon_texture.texture, NULL, NULL);
-                DrawAtPositionStatic(moon);
-                SDL_RenderCopy(renderer, moon_texture.texture, NULL, &moon.draw_rect);
+                RenderAtPositionStatic(renderer, moon);
 
-                SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_left);
-                SDL_RenderCopy(renderer, clouds_texture.texture, NULL, &cloud_rect_right);
+                RenderAtPositionStatic(renderer, clouds_left);
+                RenderAtPositionStatic(renderer, clouds_right);
 
-                for (Drawable &drawableTerrain : drawableTerrains)
+                for (Drawable &drawableTerrain : drawable_terrains)
                 {
-                    RenderRepeatedTexture(renderer, brick_texture, brick_texture.w * 4, brick_texture.h * 4, drawableTerrain.draw_rect);
+                    RenderAtPosition(renderer, camera_center, drawableTerrain);
                 }
 
-                SDL_RenderCopyEx(renderer, king_texture.texture, NULL, &player.rects.draw_rect, 0, NULL, facing_left ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
+                RenderAtPosition(renderer, camera_center, player.rects);
 
                 if (paused)
                 {
                     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 120);
-                    SDL_RenderFillRect(renderer, &full_screen_rect);
-                    SDL_RenderCopy(renderer, paused_texture.texture, NULL, &paused_rect);
+                    RenderFullScreenRect(renderer);
+                    RenderAtPositionStatic(renderer, paused_text);
                 }
 
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
                 SDL_RenderFillRect(renderer, &screen_bar_right);
                 SDL_RenderFillRect(renderer, &screen_bar_bottom);
             }

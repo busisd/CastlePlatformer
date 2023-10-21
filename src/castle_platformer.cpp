@@ -27,19 +27,16 @@ using namespace util;
 // * Save user options
 // * Reorganize game into its own class or function
 // * Change menu boolean to enum of views (menu, settings, game)
+//   * Let user change the screen mode in settings menu
 // * Get stage bounds from the stage json
 // * Add player starting position to stage json
 // * Change the brick texture to be less mossy
 // * Support >60 fps
-// * Center the screen when the aspect ratio is not perfect
 // * Make repeated textures the same regardless of window size
 // * Make menu buttons the same regardless of window size
 // * Make pixel art always correspond to game size
 //   * Or some fraction of game size that can be scaled up in various ways
 // * Add setting to "snap" game resolution to the biggest perfect multiple
-// * Consider not letter-boxing the screen
-//   * Logic to show extra; OR
-//   * Reverse logic for bounding the screen so it always shows less
 // * Move Texture into Drawable
 // * Move rendering into a class so that camera position and renderer don't need to be passed in
 
@@ -230,15 +227,22 @@ void RenderAtPositionStatic(SDL_Renderer *renderer, Drawable &drawable)
     SDL_RenderCopy(renderer, drawable.texture.sdl_texture, NULL, &drawable.draw_rect);
 }
 
-void RenderFullScreenRect(SDL_Renderer *renderer) {
+void RenderFullScreenRect(SDL_Renderer *renderer)
+{
     SDL_Rect full_screen_rect = {
-        x: SCREEN_PADDING_X,
-        y: SCREEN_PADDING_Y,
-        w: SCREEN_W,
-        h: SCREEN_H
+        x : SCREEN_PADDING_X,
+        y : SCREEN_PADDING_Y,
+        w : SCREEN_W,
+        h : SCREEN_H
     };
     SDL_RenderFillRect(renderer, &full_screen_rect);
 }
+
+enum class ScreenMode
+{
+    FIT,
+    FILL
+};
 
 int main(int argc, char **argv)
 {
@@ -322,6 +326,9 @@ int main(int argc, char **argv)
 
     std::unordered_set<SDL_KeyCode> keys_pressed;
 
+    ScreenMode screen_mode = ScreenMode::FIT;
+    bool should_recalculate_screen = false;
+
     auto frame_length = std::chrono::microseconds{(int)(1.0 / 60.0 * 1000.0 * 1000.0)};
     auto current_time = std::chrono::steady_clock::now();
 
@@ -346,30 +353,7 @@ int main(int argc, char **argv)
                 {
                     ACTUAL_SCREEN_W = event.window.data1;
                     ACTUAL_SCREEN_H = event.window.data2;
-                    if (ACTUAL_SCREEN_W * SCREEN_RATIO_H >= ACTUAL_SCREEN_H * SCREEN_RATIO_W)
-                    { // Display area is height-bounded
-                        SCREEN_H = ACTUAL_SCREEN_H;
-                        SCREEN_W = ACTUAL_SCREEN_H * SCREEN_RATIO_W / SCREEN_RATIO_H;
-                    }
-                    else
-                    { // Display area is width-bounded
-                        SCREEN_W = ACTUAL_SCREEN_W;
-                        SCREEN_H = ACTUAL_SCREEN_W * SCREEN_RATIO_H / SCREEN_RATIO_W;
-                    }
-
-                    // prettyLog("New window size", SCREEN_W, SCREEN_H);
-
-                    // Recalculate anything depending on SCREEN_W or SCREEN_H
-                    GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / GAME_BOX_W;
-
-                    // Amount of padding per side when the aspect ratio is not perfect,
-                    // in order to center the game
-                    SCREEN_PADDING_X = (ACTUAL_SCREEN_W - SCREEN_W) / 2;
-                    SCREEN_PADDING_Y = (ACTUAL_SCREEN_H - SCREEN_H) / 2;
-                    screen_bar_left = {x : 0, y : 0, w : SCREEN_PADDING_X, h : ACTUAL_SCREEN_H};
-                    screen_bar_right = {x : ACTUAL_SCREEN_W - SCREEN_PADDING_X, y : 0, w : SCREEN_PADDING_X, h : ACTUAL_SCREEN_H};
-                    screen_bar_top = {x: 0, y: 0, w: ACTUAL_SCREEN_W, h: SCREEN_PADDING_Y};
-                    screen_bar_bottom = {x : 0, y : ACTUAL_SCREEN_H - SCREEN_PADDING_Y, w : ACTUAL_SCREEN_W, h : SCREEN_PADDING_Y};
+                    should_recalculate_screen = true;
                 }
             }
         }
@@ -378,10 +362,66 @@ int main(int argc, char **argv)
             break;
         }
 
+        if (should_recalculate_screen)
+        {
+            if (screen_mode == ScreenMode::FIT)
+            {
+                if (ACTUAL_SCREEN_W * SCREEN_RATIO_H >= ACTUAL_SCREEN_H * SCREEN_RATIO_W)
+                { // Display area is height-bounded
+                    SCREEN_H = ACTUAL_SCREEN_H;
+                    SCREEN_W = ACTUAL_SCREEN_H * SCREEN_RATIO_W / SCREEN_RATIO_H;
+                }
+                else
+                { // Display area is width-bounded
+                    SCREEN_W = ACTUAL_SCREEN_W;
+                    SCREEN_H = ACTUAL_SCREEN_W * SCREEN_RATIO_H / SCREEN_RATIO_W;
+                }
+            }
+            else
+            {
+                if (ACTUAL_SCREEN_W * SCREEN_RATIO_H >= ACTUAL_SCREEN_H * SCREEN_RATIO_W)
+                { // Display area is height-bounded
+                    SCREEN_W = ACTUAL_SCREEN_W;
+                    SCREEN_H = ACTUAL_SCREEN_W * SCREEN_RATIO_H / SCREEN_RATIO_W;
+                }
+                else
+                { // Display area is width-bounded
+                    SCREEN_H = ACTUAL_SCREEN_H;
+                    SCREEN_W = ACTUAL_SCREEN_H * SCREEN_RATIO_W / SCREEN_RATIO_H;
+                }
+            }
+
+            // Recalculate anything depending on SCREEN_W or SCREEN_H
+            GAME_TO_SCREEN_MULTIPLIER = (double)SCREEN_W / GAME_BOX_W;
+
+            // Amount of padding per side when the aspect ratio is not perfect,
+            // in order to center the game
+            SCREEN_PADDING_X = (ACTUAL_SCREEN_W - SCREEN_W) / 2;
+            SCREEN_PADDING_Y = (ACTUAL_SCREEN_H - SCREEN_H) / 2;
+            screen_bar_left = {x : 0, y : 0, w : SCREEN_PADDING_X, h : ACTUAL_SCREEN_H};
+            screen_bar_right = {x : ACTUAL_SCREEN_W - SCREEN_PADDING_X, y : 0, w : SCREEN_PADDING_X, h : ACTUAL_SCREEN_H};
+            screen_bar_top = {x : 0, y : 0, w : ACTUAL_SCREEN_W, h : SCREEN_PADDING_Y};
+            screen_bar_bottom = {x : 0, y : ACTUAL_SCREEN_H - SCREEN_PADDING_Y, w : ACTUAL_SCREEN_W, h : SCREEN_PADDING_Y};
+            should_recalculate_screen = false;
+        }
+
         while (std::chrono::steady_clock::now() > current_time + frame_length)
         {
             frame_number++;
             current_time += frame_length;
+
+            if (newly_pressed_keys[SDL_SCANCODE_S])
+            {
+                if (screen_mode == ScreenMode::FILL)
+                {
+                    screen_mode = ScreenMode::FIT;
+                }
+                else
+                {
+                    screen_mode = ScreenMode::FILL;
+                }
+                should_recalculate_screen = true;
+            }
 
             if (menu)
             {

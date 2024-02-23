@@ -190,10 +190,15 @@ void DrawAtPosition(Point camera_center, Drawable &drawable)
 {
     // TODO: Possible optimization, don't recalculate height/width every time
     // (Cache it for each sprite until window size changes)
-    drawable.draw_rect.w = drawable.game_rect.w * GAME_TO_SCREEN_MULTIPLIER;
-    drawable.draw_rect.x = TransformGameXToWindowX(drawable.game_rect.x - camera_center.x) + SCREEN_PADDING_X;
-    drawable.draw_rect.h = drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER;
-    drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y - camera_center.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER) + SCREEN_PADDING_Y;
+    int left_position = TransformGameXToWindowX(drawable.game_rect.x - camera_center.x);
+    int right_position = TransformGameXToWindowX(drawable.game_rect.x + drawable.game_rect.w - camera_center.x);
+    drawable.draw_rect.x = left_position + SCREEN_PADDING_X;
+    drawable.draw_rect.w = right_position - left_position;
+
+    int bottom_position = TransformGameYToWindowY(drawable.game_rect.y - camera_center.y);
+    int top_position = TransformGameYToWindowY(drawable.game_rect.y + drawable.game_rect.h - camera_center.y);
+    drawable.draw_rect.y = top_position + SCREEN_PADDING_Y;
+    drawable.draw_rect.h = bottom_position - top_position;
 }
 
 /**
@@ -201,10 +206,15 @@ void DrawAtPosition(Point camera_center, Drawable &drawable)
  */
 void DrawAtPositionStatic(Drawable &drawable)
 {
-    drawable.draw_rect.w = drawable.game_rect.w * GAME_TO_SCREEN_MULTIPLIER;
-    drawable.draw_rect.x = TransformGameXToWindowX(drawable.game_rect.x) + SCREEN_PADDING_X;
-    drawable.draw_rect.h = drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER;
-    drawable.draw_rect.y = TransformGameYToWindowY(drawable.game_rect.y) - (drawable.game_rect.h * GAME_TO_SCREEN_MULTIPLIER) + SCREEN_PADDING_Y;
+    int left_position = TransformGameXToWindowX(drawable.game_rect.x);
+    int right_position = TransformGameXToWindowX(drawable.game_rect.x + drawable.game_rect.w);
+    drawable.draw_rect.x = left_position + SCREEN_PADDING_X;
+    drawable.draw_rect.w = right_position - left_position;
+
+    int bottom_position = TransformGameYToWindowY(drawable.game_rect.y);
+    int top_position = TransformGameYToWindowY(drawable.game_rect.y + drawable.game_rect.h);
+    drawable.draw_rect.y = top_position + SCREEN_PADDING_Y;
+    drawable.draw_rect.h = bottom_position - top_position;
 }
 
 void RenderAtPosition(SDL_Renderer *renderer, Point camera_center, Drawable &drawable)
@@ -292,8 +302,8 @@ int main(int argc, char **argv)
         drawable_terrains.push_back({
             game_rect : {x : terrainPiece["l"],
                          y : terrainPiece["b"],
-                         w : (double)terrainPiece["r"] - (double)terrainPiece["l"] + 1,
-                         h : (double)terrainPiece["t"] - (double)terrainPiece["b"] + 1},
+                         w : (double)terrainPiece["r"] - (double)terrainPiece["l"],
+                         h : (double)terrainPiece["t"] - (double)terrainPiece["b"]},
             texture : brick_texture,
             is_repeating_texture : true
         });
